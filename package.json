@@ -1,0 +1,28 @@
+{
+  "name": "token-maxxer",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/web",
+    "build": "npm run build --workspace apps/web",
+    "start": "npm run start --workspace apps/web",
+    "lint": "npm run lint --workspace apps/web",
+    "db:generate": "npm run db:generate --workspace apps/web",
+    "db:push": "npm run db:push --workspace apps/web",
+    "db:seed": "npm run db:seed --workspace apps/web",
+    "collector": "npm run start --workspace @token-maxxer/collector --"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "allowScripts": {
+    "prisma@7.10.0": true,
+    "@prisma/engines@7.10.0": true,
+    "esbuild@0.28.2": true,
+    "better-sqlite3@12.11.1": true
+  }
+}
