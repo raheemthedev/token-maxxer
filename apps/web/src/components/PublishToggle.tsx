@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Card } from "@/components/ui/Card";
 
 export function PublishToggle({ isPublic, handle }: { isPublic: boolean; handle: string | null }) {
   const [pending, startTransition] = useTransition();
@@ -24,36 +25,39 @@ export function PublishToggle({ isPublic, handle }: { isPublic: boolean; handle:
   }
 
   return (
-    <div className="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-medium">Public leaderboard visibility</h2>
-          <p className="text-sm text-neutral-500">
-            {isPublic
-              ? "You're on the public leaderboard. Individual projects still need their own visibility turned on."
-              : "You're private. Nothing about you appears on the leaderboard or has a public profile until you publish."}
-          </p>
-        </div>
-        <button
-          onClick={() => setPublic(!isPublic)}
-          disabled={pending}
-          className={`rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50 ${
-            isPublic
-              ? "border border-neutral-300 dark:border-neutral-700"
-              : "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
-          }`}
-        >
-          {isPublic ? "Unpublish" : "Publish"}
-        </button>
-      </div>
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-      {isPublic && handle && (
-        <p className="mt-2 text-sm">
-          Preview: <a href={`/u/${handle}`} className="underline" target="_blank" rel="noreferrer">
-            /u/{handle}
-          </a>
+    <Card className="flex items-center justify-between gap-4">
+      <div>
+        <h2 className="font-medium">Public leaderboard visibility</h2>
+        <p className="mt-0.5 text-sm text-foreground-muted">
+          {isPublic
+            ? "You're on the public leaderboard. Individual projects still need their own visibility turned on."
+            : "You're private. Nothing about you appears on the leaderboard or has a public profile until you publish."}
         </p>
-      )}
-    </div>
+        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        {isPublic && handle && (
+          <p className="mt-2 text-sm">
+            Preview:{" "}
+            <a href={`/u/${handle}`} className="text-accent underline" target="_blank" rel="noreferrer">
+              /u/{handle}
+            </a>
+          </p>
+        )}
+      </div>
+      <button
+        role="switch"
+        aria-checked={isPublic}
+        onClick={() => setPublic(!isPublic)}
+        disabled={pending}
+        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
+          isPublic ? "bg-accent" : "bg-surface-muted"
+        }`}
+      >
+        <span
+          className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+            isPublic ? "translate-x-6" : "translate-x-1"
+          }`}
+        />
+      </button>
+    </Card>
   );
 }

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import { auth, signOut, isGithubConfigured, isEmailConfigured } from "@/auth";
+import { Badge } from "@/components/ui/Badge";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,23 +29,35 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
-        <header className="border-b border-neutral-200 dark:border-neutral-800">
-          <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-            <Link href="/" className="font-mono text-lg font-semibold tracking-tight">
-              token<span className="text-orange-500">maxxer</span>
+      <body className="flex min-h-full flex-col bg-background text-foreground">
+        <header className="sticky top-0 z-10 border-b border-border-soft/70 bg-background/80 backdrop-blur">
+          <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4">
+            <Link href="/" className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-foreground">
+                T
+              </span>
+              token<span className="text-accent">maxxer</span>
             </Link>
-            <nav className="flex items-center gap-4 text-sm">
-              <Link href="/" className="hover:underline">
+            <nav className="flex items-center gap-1 text-sm">
+              <Link
+                href="/"
+                className="rounded-full px-3 py-1.5 font-medium text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground"
+              >
                 Leaderboard
               </Link>
               {session?.user ? (
                 <>
-                  <Link href="/dashboard" className="hover:underline">
+                  <Link
+                    href="/dashboard"
+                    className="rounded-full px-3 py-1.5 font-medium text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground"
+                  >
                     Dashboard
                   </Link>
                   {session.user.handle && (
-                    <Link href={`/u/${session.user.handle}`} className="hover:underline">
+                    <Link
+                      href={`/u/${session.user.handle}`}
+                      className="rounded-full px-3 py-1.5 font-medium text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground"
+                    >
                       My profile
                     </Link>
                   )}
@@ -53,8 +66,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                       "use server";
                       await signOut();
                     }}
+                    className="ml-1"
                   >
-                    <button type="submit" className="text-neutral-500 hover:underline">
+                    <button
+                      type="submit"
+                      className="rounded-full px-3 py-1.5 font-medium text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground"
+                    >
                       Sign out
                     </button>
                   </form>
@@ -62,22 +79,22 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               ) : authConfigured ? (
                 <Link
                   href="/sign-in"
-                  className="rounded-md bg-neutral-900 px-3 py-1.5 text-white hover:bg-neutral-700 dark:bg-white dark:text-neutral-900"
+                  className="ml-2 rounded-full bg-accent px-4 py-1.5 font-medium text-accent-foreground shadow-sm transition-opacity hover:opacity-90"
                 >
                   Sign in
                 </Link>
               ) : (
-                <span className="rounded-md bg-amber-100 px-2 py-1 text-xs text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                <Badge tone="amber" className="ml-2">
                   Sign-in not configured
-                </span>
+                </Badge>
               )}
             </nav>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
-        <footer className="border-t border-neutral-200 px-4 py-6 text-center text-xs text-neutral-500 dark:border-neutral-800">
+        <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-10">{children}</main>
+        <footer className="border-t border-border-soft px-5 py-8 text-center text-xs text-foreground-muted">
           A friendly community leaderboard, not a fraud-proof competition. See{" "}
-          <Link href="/about" className="underline">
+          <Link href="/about" className="underline underline-offset-2">
             how counting works
           </Link>
           .

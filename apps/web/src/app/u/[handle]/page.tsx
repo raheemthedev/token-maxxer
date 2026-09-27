@@ -2,6 +2,10 @@ import { notFound } from "next/navigation";
 import { getPublicProfile } from "@/lib/profile";
 import { EvidenceBadge } from "@/components/EvidenceBadge";
 import { DatabaseUnavailableNotice } from "@/components/DatabaseUnavailableNotice";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Avatar } from "@/components/ui/Avatar";
+import { StatTile } from "@/components/ui/StatTile";
 
 function formatTokens(n: number): string {
   return n.toLocaleString();
@@ -20,119 +24,110 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
   return (
     <div>
       {profile.handle.startsWith("demo-") && (
-        <div className="mb-4 rounded-md border border-purple-300 bg-purple-50 p-3 text-sm text-purple-800 dark:border-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+        <Card className="mb-6 border-purple-200 bg-purple-50 text-sm text-purple-800 dark:border-purple-900 dark:bg-purple-900/30 dark:text-purple-300">
           This is synthetic demo data used to preview the product. It is not real usage.
-        </div>
+        </Card>
       )}
-      <div className="mb-6 flex items-center gap-4">
-        {profile.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={profile.image} alt="" className="h-16 w-16 rounded-full" />
-        ) : (
-          <span className="h-16 w-16 rounded-full bg-neutral-300 dark:bg-neutral-700" />
-        )}
+      <div className="mb-8 flex items-center gap-4">
+        <Avatar src={profile.image} alt={profile.name ?? profile.handle} size={64} />
         <div>
-          <h1 className="text-2xl font-semibold">{profile.name ?? `@${profile.handle}`}</h1>
-          <p className="text-neutral-500">@{profile.handle}</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{profile.name ?? `@${profile.handle}`}</h1>
+          <p className="text-foreground-muted">@{profile.handle}</p>
           {profile.bio && <p className="mt-1 text-sm">{profile.bio}</p>}
         </div>
       </div>
 
-      <section className="mb-8 rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
-        <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="text-sm font-medium text-neutral-500">Approved aggregate usage (all time)</h2>
+      <Card className="mb-6">
+        <div className="mb-4 flex items-baseline justify-between">
+          <h2 className="text-sm font-medium text-foreground-muted">Approved aggregate usage (all time)</h2>
           {profile.publishedAt && (
-            <span className="text-xs text-neutral-400">
+            <span className="text-xs text-foreground-muted">
               Published {profile.publishedAt.toISOString().slice(0, 10)}
             </span>
           )}
         </div>
-        <p className="font-mono text-3xl">
+        <p className="stat-number text-4xl font-semibold">
           {formatTokens(profile.totalTokens)}
-          {profile.hasUnknownCategories && <span className="ml-1 text-amber-500">*</span>}
-          <span className="ml-2 text-sm font-sans text-neutral-500">tokens (headline total)</span>
+          {profile.hasUnknownCategories && <span className="ml-1 text-accent">*</span>}
+          <span className="ml-2 text-base font-normal text-foreground-muted">tokens (headline total)</span>
         </p>
         {profile.hasUnknownCategories && (
-          <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+          <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
             * Some token categories weren&apos;t reported by at least one connector — not counted
             as zero, just not shown separately.
           </p>
         )}
 
-        <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
-          <Bucket label="Input" value={profile.bucketTotals.input} />
-          <Bucket label="Output" value={profile.bucketTotals.output} />
-          <Bucket label="Cache read" value={profile.bucketTotals.cacheRead} />
-          <Bucket label="Cache write" value={profile.bucketTotals.cacheWrite} />
-          <Bucket label="Reasoning" value={profile.bucketTotals.reasoning} />
+        <div className="mt-6 grid grid-cols-2 gap-4 border-t border-border-soft pt-5 sm:grid-cols-5">
+          <StatTile label="Input" value={profile.bucketTotals.input.toLocaleString()} />
+          <StatTile label="Output" value={profile.bucketTotals.output.toLocaleString()} />
+          <StatTile label="Cache read" value={profile.bucketTotals.cacheRead.toLocaleString()} />
+          <StatTile label="Cache write" value={profile.bucketTotals.cacheWrite.toLocaleString()} />
+          <StatTile label="Reasoning" value={profile.bucketTotals.reasoning.toLocaleString()} />
         </div>
-      </section>
+      </Card>
 
-      <div className="mb-8 grid gap-6 sm:grid-cols-2">
-        <section>
-          <h2 className="mb-2 text-sm font-medium text-neutral-500">By source</h2>
-          <ul className="space-y-1 text-sm">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2">
+        <Card>
+          <h2 className="mb-3 text-sm font-medium text-foreground-muted">By source</h2>
+          <ul className="space-y-3 text-sm">
             {profile.bySource.map((s) => (
               <li key={s.source} className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
                   {s.source} <EvidenceBadge level={s.evidenceLevel} />
                 </span>
-                <span className="font-mono">{formatTokens(s.tokens)}</span>
+                <span className="stat-number font-medium">{formatTokens(s.tokens)}</span>
               </li>
             ))}
           </ul>
-        </section>
-        <section>
-          <h2 className="mb-2 text-sm font-medium text-neutral-500">By model</h2>
-          <ul className="space-y-1 text-sm">
+        </Card>
+        <Card>
+          <h2 className="mb-3 text-sm font-medium text-foreground-muted">By model</h2>
+          <ul className="space-y-3 text-sm">
             {profile.byModel.map((m) => (
               <li key={m.model} className="flex items-center justify-between">
                 <span>{m.model}</span>
-                <span className="font-mono">{formatTokens(m.tokens)}</span>
+                <span className="stat-number font-medium">{formatTokens(m.tokens)}</span>
               </li>
             ))}
           </ul>
-        </section>
+        </Card>
       </div>
 
       <section>
-        <h2 className="mb-3 text-sm font-medium text-neutral-500">Projects</h2>
+        <h2 className="mb-3 text-sm font-medium text-foreground-muted">Projects</h2>
         {profile.projects.length === 0 ? (
-          <p className="text-sm text-neutral-400">No public projects yet.</p>
+          <Card className="text-sm text-foreground-muted">No public projects yet.</Card>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {profile.projects.map((p) => (
-              <div key={p.id} className="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
-                <div className="flex items-baseline justify-between">
+              <Card key={p.id}>
+                <div className="flex items-baseline justify-between gap-2">
                   <h3 className="font-medium">
                     {p.linkUrl ? (
-                      <a href={p.linkUrl} target="_blank" rel="noopener noreferrer nofollow" className="underline">
+                      <a
+                        href={p.linkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer nofollow"
+                        className="underline decoration-border-soft underline-offset-2 hover:decoration-accent"
+                      >
                         {p.displayName} ↗
                       </a>
                     ) : (
                       p.displayName
                     )}
                   </h3>
-                  <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
+                  <Badge tone={p.linkUrl ? "accent" : "neutral"} className="shrink-0">
                     {p.linkUrl ? "Project linked" : "Project detected"}
-                  </span>
+                  </Badge>
                 </div>
-                {p.description && <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">{p.description}</p>}
-                <p className="mt-2 font-mono text-sm">{formatTokens(p.tokens)} tokens</p>
-              </div>
+                {p.description && <p className="mt-1 text-sm text-foreground-muted">{p.description}</p>}
+                <p className="stat-number mt-3 text-sm font-medium">{formatTokens(p.tokens)} tokens</p>
+              </Card>
             ))}
           </div>
         )}
       </section>
-    </div>
-  );
-}
-
-function Bucket({ label, value }: { label: string; value: number }) {
-  return (
-    <div>
-      <div className="text-xs text-neutral-500">{label}</div>
-      <div className="font-mono">{value.toLocaleString()}</div>
     </div>
   );
 }

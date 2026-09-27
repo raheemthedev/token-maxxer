@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Card } from "@/components/ui/Card";
 
 export function PairingCodeGenerator({ serverUrl }: { serverUrl: string }) {
   const [code, setCode] = useState<string | null>(null);
@@ -18,18 +19,18 @@ export function PairingCodeGenerator({ serverUrl }: { serverUrl: string }) {
   }
 
   return (
-    <div className="rounded-md border border-neutral-200 p-4 dark:border-neutral-800">
+    <Card>
       <h2 className="mb-2 font-medium">Pair a new collector</h2>
-      <p className="mb-3 text-sm text-neutral-500">
+      <p className="mb-4 text-sm text-foreground-muted">
         Run the collector on the machine you use Claude Code / OpenCode on, then pair it with a
         one-time code.
       </p>
       {code ? (
         <div className="space-y-2">
-          <pre className="overflow-x-auto rounded-md bg-neutral-100 p-3 text-sm dark:bg-neutral-900">
+          <pre className="overflow-x-auto rounded-xl bg-surface-muted p-3.5 font-mono text-sm">
             {`npm run collector -- pair --server ${serverUrl} --code ${code}`}
           </pre>
-          <p className="text-xs text-neutral-500">
+          <p className="text-xs text-foreground-muted">
             Expires {expiresAt ? new Date(expiresAt).toLocaleTimeString() : ""}. One-time use.
           </p>
         </div>
@@ -37,11 +38,11 @@ export function PairingCodeGenerator({ serverUrl }: { serverUrl: string }) {
         <button
           onClick={generate}
           disabled={loading}
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-neutral-900"
+          className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-foreground shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {loading ? "Generating…" : "Generate pairing code"}
         </button>
       )}
-    </div>
+    </Card>
   );
 }

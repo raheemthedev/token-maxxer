@@ -19,7 +19,7 @@ export function RevokeCollectorButton({ id }: { id: string }) {
     <button
       onClick={revoke}
       disabled={pending}
-      className="rounded-md border border-red-300 px-2 py-1 text-xs text-red-700 disabled:opacity-50 dark:border-red-900 dark:text-red-400"
+      className="rounded-full border border-red-200 px-3 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-900/20"
     >
       Revoke
     </button>

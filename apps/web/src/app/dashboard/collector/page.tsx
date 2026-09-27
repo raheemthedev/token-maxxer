@@ -4,15 +4,23 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { PairingCodeGenerator } from "@/components/PairingCodeGenerator";
 import { RevokeCollectorButton } from "@/components/RevokeCollectorButton";
+import { DatabaseUnavailableNotice } from "@/components/DatabaseUnavailableNotice";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 
 export default async function CollectorPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/sign-in");
 
-  const collectors = await prisma.collector.findMany({
-    where: { userId: session.user.id },
-    orderBy: { createdAt: "desc" },
-  });
+  let collectors: Awaited<ReturnType<typeof prisma.collector.findMany>>;
+  try {
+    collectors = await prisma.collector.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+    });
+  } catch {
+    return <DatabaseUnavailableNotice />;
+  }
 
   const hdrs = await headers();
   const proto = hdrs.get("x-forwarded-proto") ?? "http";
@@ -22,8 +30,8 @@ export default async function CollectorPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold">Collector</h1>
-        <p className="text-neutral-500">
+        <h1 className="text-3xl font-semibold tracking-tight">Collector</h1>
+        <p className="mt-1 text-foreground-muted">
           One local collector detects supported tools (Claude Code, OpenCode) and uploads usage
           metadata only — never prompts, code, or full file paths.
         </p>
@@ -34,53 +42,42 @@ export default async function CollectorPage() {
       <section>
         <h2 className="mb-3 font-medium">Paired collectors</h2>
         {collectors.length === 0 ? (
-          <p className="text-sm text-neutral-500">None yet.</p>
+          <Card className="text-sm text-foreground-muted">None yet.</Card>
         ) : (
-          <ul className="space-y-2">
+          <Card className="divide-y divide-border-soft p-0">
             {collectors.map((c) => (
-              <li
-                key={c.id}
-                className="flex items-center justify-between rounded-md border border-neutral-200 px-3 py-2 text-sm dark:border-neutral-800"
-              >
+              <div key={c.id} className="flex items-center justify-between px-5 py-3.5">
                 <div>
-                  <p>
-                    {c.name}{" "}
-                    <span
-                      className={`ml-1 rounded-full px-2 py-0.5 text-xs ${
-                        c.status === "active"
-                          ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
-                          : "bg-neutral-200 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400"
-                      }`}
-                    >
-                      {c.status}
-                    </span>
+                  <p className="flex items-center gap-2 text-sm font-medium">
+                    {c.name}
+                    <Badge tone={c.status === "active" ? "green" : "neutral"}>{c.status}</Badge>
                   </p>
-                  <p className="text-xs text-neutral-400">
+                  <p className="mt-0.5 text-xs text-foreground-muted">
                     Paired {c.createdAt.toLocaleDateString()}
                     {c.lastSeenAt && ` · last seen ${new Date(c.lastSeenAt).toLocaleString()}`}
                   </p>
                 </div>
                 {c.status === "active" && <RevokeCollectorButton id={c.id} />}
-              </li>
+              </div>
             ))}
-          </ul>
+          </Card>
         )}
       </section>
 
-      <section className="rounded-md border border-neutral-200 p-4 text-sm dark:border-neutral-800">
+      <Card className="bg-surface-muted !shadow-none">
         <h2 className="mb-2 font-medium">Collector commands</h2>
-        <pre className="overflow-x-auto rounded-md bg-neutral-100 p-3 dark:bg-neutral-900">
+        <pre className="overflow-x-auto rounded-xl bg-surface p-3.5 font-mono text-sm">
 {`token-maxxer-collector status          # see detected tools
 token-maxxer-collector run --once      # collect + upload once
 token-maxxer-collector run             # keep collecting every 5 minutes
 token-maxxer-collector pause / resume  # pause without unpairing
 token-maxxer-collector unpair          # remove local pairing`}
         </pre>
-        <p className="mt-2 text-neutral-500">
+        <p className="mt-3 text-sm text-foreground-muted">
           Diagnostics reported by the collector never include prompt/response content or full
           local paths.
         </p>
-      </section>
+      </Card>
     </div>
   );
 }
