@@ -10,6 +10,7 @@ Built from [claude-token-maxxer-build-brief.md](./claude-token-maxxer-build-brie
 ```bash
 npm install
 cp apps/web/.env.example apps/web/.env
+# set DATABASE_URL in apps/web/.env to a Postgres connection string (a free Neon project works)
 npm run db:push
 npm run db:seed
 npm run dev
@@ -30,8 +31,8 @@ against real usage) is in [docs/SETUP.md](./docs/SETUP.md).
 
 ## Stack
 
-Next.js (App Router) + TypeScript + Tailwind, Prisma (SQLite dev / Postgres prod), Auth.js v5
-(GitHub + email), npm workspaces monorepo. See [docs/SETUP.md](./docs/SETUP.md) for why.
+Next.js (App Router) + TypeScript + Tailwind, Prisma + Postgres (Neon), Auth.js v5 (GitHub +
+email), npm workspaces monorepo. See [docs/SETUP.md](./docs/SETUP.md) for why.
 
 ## Docs
 

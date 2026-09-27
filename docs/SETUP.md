@@ -26,9 +26,12 @@ This also runs Prisma's `postinstall` generate step for `apps/web`.
 cp apps/web/.env.example apps/web/.env
 ```
 
-The defaults work for local development with **zero further configuration** — SQLite database,
-sign-in shown as "not configured" until you add credentials, email magic links printed to the
-server console instead of sent.
+The app is Postgres-only (Neon, provisioned via Vercel's marketplace integration in production) —
+set `DATABASE_URL` to a Postgres connection string before step 3 below. A free Neon project works
+fine for local dev too; reuse the same one your deployment uses, or create a separate one. Left
+empty, the app still boots — every page just shows a "database not configured" notice instead of
+crashing. Sign-in shows as "not configured" until you add credentials, and email magic links print
+to the server console instead of sending, until `EMAIL_SERVER`/`EMAIL_FROM` are set.
 
 To turn on real sign-in:
 
@@ -42,7 +45,7 @@ To turn on real sign-in:
 ## 3. Database
 
 ```bash
-npm run db:push     # create the SQLite schema
+npm run db:push     # sync the schema to your Postgres database
 npm run db:seed      # load synthetic demo fixtures (handles prefixed demo-*, clearly labeled in the UI)
 ```
 
@@ -74,30 +77,31 @@ npm run collector -- run --once # collect once and upload
 
 ### Database
 
-SQLite's file lives on ephemeral disk on serverless platforms and will not persist. Before
-deploying anywhere serverless (including Vercel):
-
-1. Provision Postgres (Vercel Postgres, Neon, or Supabase all work).
-2. In `apps/web/prisma/schema.prisma`, change `datasource db { provider = "sqlite" }` to
-   `provider = "postgresql"`.
-3. Set `DATABASE_URL` to the Postgres connection string in your deployment's environment.
-4. Run `npm run db:push` (or switch to migrations with `prisma migrate deploy` for anything past a
-   first release) against that database.
+1. Provision Postgres. On Vercel: Project → Storage → Create Database → Neon (free tier, no card
+   required) → Connect Project. This sets `DATABASE_URL` (and several `DATABASE_*` sibling vars
+   from Neon) in your Vercel project automatically.
+2. `apps/web/package.json`'s `build` script runs `prisma db push` automatically on every Vercel
+   build (guarded by Vercel's own `VERCEL=1` env var — see `scripts/db-push-on-vercel.mjs`), so the
+   schema stays in sync with no extra step. This is a pre-migrations convenience for this early
+   stage; switch to `prisma migrate deploy` before this matters for real user data.
 
 ### Vercel
 
 1. Push this repo to GitHub.
-2. Import it into Vercel; set the **root directory** to `apps/web` (it's an npm-workspaces
-   monorepo, so Vercel needs to know where the Next.js app lives — it will still run the install
-   from the repo root).
-3. Set the environment variables from step 2 above (`DATABASE_URL` pointing at Postgres,
-   `AUTH_SECRET`, `AUTH_GITHUB_ID`/`AUTH_GITHUB_SECRET`, `EMAIL_SERVER`/`EMAIL_FROM`,
-   `COLLECTOR_TOKEN_SECRET`) in the Vercel project settings.
-4. Update your GitHub OAuth app's callback URL to
-   `https://<your-vercel-domain>/api/auth/callback/github`.
-5. Deploy. Re-run `npm run db:seed` (via `vercel env pull` + local run, or a one-off script) against
-   the production database only if you want the demo leaderboard rows there too — most real
-   deployments should skip seeding.
+2. Import it into Vercel. Because it's an npm-workspaces monorepo, either set the project's **root
+   directory** to `apps/web` in the dashboard, or (what this project actually uses) keep the root
+   directory as `.` and set custom **Install/Build/Output** commands:
+   - Install: `npm install`
+   - Build: `npm run build --workspace apps/web`
+   - Output directory: `apps/web/.next`
+3. Add the database (see above), and set `AUTH_SECRET`, `AUTH_GITHUB_ID`/`AUTH_GITHUB_SECRET`,
+   `EMAIL_SERVER`/`EMAIL_FROM`, `COLLECTOR_TOKEN_SECRET` in the Vercel project's environment
+   variables.
+4. Create a GitHub OAuth app at <https://github.com/settings/developers> with callback URL
+   `https://<your-vercel-domain>/api/auth/callback/github`, and set its client ID/secret as
+   `AUTH_GITHUB_ID`/`AUTH_GITHUB_SECRET` above.
+5. Deploy. Re-run `npm run db:seed` locally against the production `DATABASE_URL` only if you want
+   the demo leaderboard rows there too — most real deployments should skip seeding.
 
 Nothing in this repository deploys itself — see docs/PRIVACY.md and the top of the build brief for
 why (no telemetry is enabled, no real usage is uploaded, and no deployment happens without a human

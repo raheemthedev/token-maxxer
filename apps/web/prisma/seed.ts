@@ -6,12 +6,10 @@
  */
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { hashProjectFingerprint } from "@token-maxxer/shared";
 
-const rawUrl = process.env.DATABASE_URL ?? "file:./dev.db";
-const path = rawUrl.startsWith("file:") ? rawUrl.slice("file:".length) : rawUrl;
-const prisma = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: path }) });
+const prisma = new PrismaClient({ adapter: new PrismaPg(process.env.DATABASE_URL ?? "") });
 
 interface DemoProject {
   slug: string;

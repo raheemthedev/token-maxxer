@@ -1,9 +1,7 @@
 // Token Maxxer data model.
 //
-// Dev default is SQLite so `npm run dev` works with zero external setup. For a real deployment
-// (Vercel or otherwise) switch `provider` to "postgresql" and point DATABASE_URL at a real
-// Postgres instance (Vercel Postgres / Neon / Supabase all work) — SQLite's file lives on
-// ephemeral serverless disk and will not persist in production. See docs/SETUP.md.
+// Postgres (Neon, via Vercel's marketplace integration) everywhere — see docs/SETUP.md for
+// pointing local dev at the same or a separate database.
 
 generator client {
   provider = "prisma-client-js"
@@ -11,7 +9,7 @@ generator client {
 
 // Connection string lives in prisma.config.ts (Prisma 7 moved it out of schema files).
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 // ---------------------------------------------------------------------------
