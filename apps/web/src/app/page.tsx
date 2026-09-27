@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getLeaderboard } from "@/lib/leaderboard";
 import type { LeaderboardPeriod } from "@/lib/period";
 import { EvidenceBadge } from "@/components/EvidenceBadge";
+import { DatabaseUnavailableNotice } from "@/components/DatabaseUnavailableNotice";
 
 const TABS: { key: LeaderboardPeriod; label: string }[] = [
   { key: "weekly", label: "This week" },
@@ -24,7 +25,13 @@ export default async function LeaderboardPage({
   const period: LeaderboardPeriod =
     rawPeriod === "daily" || rawPeriod === "all_time" ? rawPeriod : "weekly";
 
-  const rows = await getLeaderboard(period);
+  let rows: Awaited<ReturnType<typeof getLeaderboard>> = [];
+  let dbUnavailable = false;
+  try {
+    rows = await getLeaderboard(period);
+  } catch {
+    dbUnavailable = true;
+  }
 
   return (
     <div>
@@ -57,7 +64,9 @@ export default async function LeaderboardPage({
         starts Monday 00:00 UTC. See <Link href="/about" className="underline">how counting works</Link>.
       </div>
 
-      {rows.length === 0 ? (
+      {dbUnavailable ? (
+        <DatabaseUnavailableNotice />
+      ) : rows.length === 0 ? (
         <div className="rounded-md border border-dashed border-neutral-300 p-8 text-center text-neutral-500 dark:border-neutral-700">
           No one has published usage for this period yet.
         </div>

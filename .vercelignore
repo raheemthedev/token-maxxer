@@ -1,0 +1,4 @@
+apps/web/.env
+apps/web/.env.local
+apps/web/dev.db
+apps/web/dev.db-journal

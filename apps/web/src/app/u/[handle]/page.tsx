@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getPublicProfile } from "@/lib/profile";
 import { EvidenceBadge } from "@/components/EvidenceBadge";
+import { DatabaseUnavailableNotice } from "@/components/DatabaseUnavailableNotice";
 
 function formatTokens(n: number): string {
   return n.toLocaleString();
@@ -8,7 +9,12 @@ function formatTokens(n: number): string {
 
 export default async function ProfilePage({ params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params;
-  const profile = await getPublicProfile(handle);
+  let profile: Awaited<ReturnType<typeof getPublicProfile>>;
+  try {
+    profile = await getPublicProfile(handle);
+  } catch {
+    return <DatabaseUnavailableNotice />;
+  }
   if (!profile) notFound();
 
   return (

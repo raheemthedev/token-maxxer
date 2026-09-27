@@ -5,12 +5,18 @@ import { getDashboardData } from "@/lib/dashboard";
 import { PublishToggle } from "@/components/PublishToggle";
 import { ProjectCard } from "@/components/ProjectCard";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
+import { DatabaseUnavailableNotice } from "@/components/DatabaseUnavailableNotice";
 
 export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/sign-in");
 
-  const data = await getDashboardData(session.user.id);
+  let data: Awaited<ReturnType<typeof getDashboardData>>;
+  try {
+    data = await getDashboardData(session.user.id);
+  } catch {
+    return <DatabaseUnavailableNotice />;
+  }
   const visibleProjects = data.projects.filter((p) => !p.hidden);
   const hiddenProjects = data.projects.filter((p) => p.hidden);
 
