@@ -60,14 +60,23 @@ npm run dev
 Visit `http://localhost:3000` — the leaderboard should show the seeded `demo-*` rows with a
 "Demo data" badge. Sign in (once GitHub or email is configured) to reach `/dashboard`.
 
-## 5. Try the collector against your own real usage (optional, local only)
+## 5. Try tracking your own real usage (optional)
 
-This uploads *your own* real Claude Code / OpenCode usage metadata to whatever `--server` you
-point it at — only do this against a server you control, and only once you're comfortable with
-what docs/PRIVACY.md says is and isn't collected.
+Both paths upload *your own* real Claude Code / OpenCode usage metadata — only do this against a
+server you control, and only once you're comfortable with what docs/PRIVACY.md says is and isn't
+collected.
+
+**Automatic (recommended):** Dashboard → Collector → "Generate setup snippet", then paste the
+result into either your shell profile (`~/.zshrc` etc. — works if Claude Code is launched from a
+terminal) or `~/.claude/settings.json`'s `"env"` key (more reliable if Claude Code is launched
+through a GUI app, since shell profiles aren't always sourced by GUI-launched processes). Then
+start a *new* Claude Code session — env vars only apply to processes started after they're set, so
+an already-running session won't pick them up retroactively.
+
+**Manual (advanced, required for OpenCode):**
 
 ```bash
-# In the dashboard: Dashboard → Collector → "Generate pairing code"
+# In the dashboard: Dashboard → Collector → "Advanced" → "Generate pairing code"
 npm run collector -- pair --server http://localhost:3000 --code <code-from-dashboard>
 npm run collector -- status     # see what it detected
 npm run collector -- run --once # collect once and upload
@@ -109,13 +118,21 @@ explicitly running the steps above).
 
 ## What's implemented vs. deferred in this release
 
-- ✅ GitHub + email sign-in (Auth.js v5), explicit "not configured" states when credentials are
-  missing.
-- ✅ Collector pairing, revocation, and idempotent ingestion.
-- ✅ Automatic project detection (git root → workspace folder), rename/hide/merge/link, publish
-  preview and explicit publish toggle.
-- ✅ Weekly/daily/all-time leaderboard, public profiles, documented accounting rule.
-- ✅ Claude Code connector (local JSONL transcripts, metadata fields only).
+- ✅ **Live in production**: real Postgres (Neon), real GitHub OAuth, deployed at
+  token-maxxer-ten.vercel.app with auto-deploy from `main` — not just a local demo.
+- ✅ GitHub + email sign-in (Auth.js v5); email has no real SMTP provider configured, so magic
+  links print to server logs rather than send — everything else works.
+- ✅ Automatic (OTel) tracking: paste-once setup, no process to run. End-to-end verified against
+  production with real requests — bucket merging, idempotent dedup, cumulative-counter upsert, and
+  cross-session summing all confirmed correct, not just unit-tested.
+- ✅ CLI collector (advanced path): pairing, revocation, idempotent ingestion, still required for
+  OpenCode or more precise (path-level) project attribution.
+- ✅ Automatic project detection (git root → workspace folder for the CLI path; repo name via
+  `vcs.*` attributes for the OTel path), rename/hide/merge/link, publish preview and explicit
+  publish toggle.
+- ✅ Weekly/daily/all-time leaderboard, public profiles, documented accounting rule, graceful
+  degradation (not a crash) if the database is ever unreachable.
+- ✅ Claude Code connectors: OTel (recommended) and local JSONL transcripts (advanced/manual).
 - ⚠️ OpenCode connector: implemented against the public CLI surface only, from documentation
   review — **needs validation against a real `opencode` install** before you rely on it (see
   docs/SUPPORT_MATRIX.md).
