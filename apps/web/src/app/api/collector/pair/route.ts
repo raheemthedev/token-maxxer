@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { PairingExchangeResponse } from "@token-maxxer/shared";
 import { prisma } from "@/lib/prisma";
-import { generateCollectorToken, generateProjectSalt, hashCollectorToken } from "@/lib/collectorAuth";
+import { generateCollectorToken, getOrCreateProjectSalt, hashCollectorToken } from "@/lib/collectorAuth";
 
 const bodySchema = z.object({
   pairingCode: z.string().min(1),
@@ -27,13 +27,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "User account is not fully set up yet." }, { status: 400 });
   }
 
-  // Reuse one project-hashing salt per user across all their collectors so project fingerprints
-  // stay comparable; generate it once, lazily, on first pairing.
-  const existingCollectorWithSalt = await prisma.collector.findFirst({
-    where: { userId: user.id },
-    select: { projectSalt: true },
-  });
-  const projectSalt = existingCollectorWithSalt?.projectSalt ?? generateProjectSalt();
+  const projectSalt = await getOrCreateProjectSalt(user.id);
 
   const token = generateCollectorToken();
   const collector = await prisma.$transaction(async (tx) => {

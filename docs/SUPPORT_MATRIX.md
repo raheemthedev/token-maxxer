@@ -3,39 +3,25 @@
 Recheck this against upstream docs/source before relying on it — both projects can change
 their schemas without notice, and neither treats these as a stable public API for third parties.
 
-| | Claude Code | OpenCode |
-| --- | --- | --- |
-| **Status** | Implemented (local JSONL transcripts) | Implemented against public CLI surface only; **needs validation** against a real install before enabling by default |
-| **Detection** | `~/.claude/projects/**/*.jsonl` present | `opencode` binary present on `PATH` |
-| **Data source** | Local session transcript files (see below) | `opencode` CLI stats output (see below) — **not** its internal SQLite/state file, per the brief's own caution against depending on an undocumented internal schema |
-| **Setup required** | None beyond having used Claude Code locally | `opencode` installed and on `PATH`; if its stats command doesn't support machine-readable output, this connector reports `unsupported` rather than guessing |
-| **Token categories** | input, output, cache read, cache write. Reasoning/thinking tokens are billed as part of output for current Claude models, so `reasoning = null`, `reasoningIncludedInOutput = true` | input, output, reasoning, cache read/write — OpenCode's own stats already separate these |
-| **History availability** | Full local history (all retained transcript files) | Whatever window the CLI's stats command exposes (typically recent sessions) |
-| **Project attribution** | `cwd` field on each transcript line → git root (via local `git rev-parse`) → workspace folder fallback | Session's `projectID`/`Project.Info` from OpenCode's own stats output, when present; otherwise unassigned |
-| **Stable event id** | Assistant message `requestId` (falls back to message `uuid`) | Session id + message index (best effort; flagged `locally_reported`, never `provider_verified`) |
-| **Content excluded** | `message.content` (prompt/response text), tool inputs/outputs — connector reads only `usage`, `model`, `cwd`, `sessionId`, `timestamp`, `requestId`/`uuid` | Connector only reads the stats command's numeric/metadata output, never raw session content |
-| **Evidence level** | `locally_reported` | `locally_reported` |
-| **Known limitations** | Requires the machine's local transcript files to still exist (Claude Code retention policy, not ours); doesn't currently attempt the OTel-metrics path (see below) | Entirely dependent on the `opencode` CLI exposing a stable, scriptable stats surface; if the real CLI has no such flag, this connector should be treated as a documented gap, not implemented against a guessed internal DB schema |
+| | Claude Code (OTel — recommended) | Claude Code (CLI collector — advanced) | OpenCode |
+| --- | --- | --- | --- |
+| **Status** | Implemented | Implemented (local JSONL transcripts) | Implemented against public CLI surface only; **needs validation** against a real install before enabling by default |
+| **Setup** | Paste a one-time env-var snippet (dashboard → Collector → "Generate setup snippet") into your shell profile | Clone the repo, run the CLI collector (`pair`, then `run`/`run --once`) | `opencode` installed and on `PATH`; if its stats command doesn't support machine-readable output, this connector reports `unsupported` rather than guessing |
+| **After setup** | Nothing — Claude Code exports automatically on every session, no process to keep running | Must run `run` continuously (or re-run `run --once`) to upload | Same as CLI collector — manual `run`/`run --once` |
+| **Data source** | Claude Code's built-in OTLP/HTTP-JSON metrics export, received at `/api/otel/v1/metrics` | Local session transcript files (see below) | `opencode` CLI stats output — **not** its internal SQLite/state file, per the brief's own caution against depending on an undocumented internal schema |
+| **Token categories** | input, output, cache read, cache write, from the `claude_code.token.usage` counter's `type` attribute. Reasoning billed as part of output (`reasoning = null`, `reasoningIncludedInOutput = true`) | Same categories, read directly from each transcript line's `usage` object | input, output, reasoning, cache read/write — OpenCode's own stats already separate these |
+| **History availability** | Only from when the snippet is added onward (no backfill) | Full local history (all retained transcript files) | Whatever window the CLI's stats command exposes |
+| **Project attribution** | `vcs.owner.name`/`vcs.repository.name` resource attributes, when `OTEL_METRICS_INCLUDE_REPOSITORY=true` is set (in the generated snippet) and the session is inside a repo with a recognized remote — otherwise unassigned. Repo-level only, no path/workspace-folder fallback | `cwd` field on each transcript line → git root (via local `git rev-parse`) → workspace folder fallback. More precise than the OTel path | Session's `projectID`/`Project.Info` from OpenCode's own stats output, when present; otherwise unassigned |
+| **Stable event id** | Derived from `session.id` + `model` (cumulative counters) or `session.id` + `model` + timestamp (delta counters) — see docs/ACCOUNTING.md | Assistant message `requestId` (falls back to message `uuid`) | Session id + message index (best effort; flagged `locally_reported`, never `provider_verified`) |
+| **Content excluded** | Only numeric metric data points and the listed attributes are read — Claude Code's own `OTEL_LOG_*` content-inclusion flags are never enabled by the generated snippet, so no prompt/tool content is ever exported in the first place | `message.content` (prompt/response text), tool inputs/outputs — connector reads only `usage`, `model`, `cwd`, `sessionId`, `timestamp`, `requestId`/`uuid` | Connector only reads the stats command's numeric/metadata output, never raw session content |
+| **Evidence level** | `locally_reported` | `locally_reported` | `locally_reported` |
+| **Known limitations** | Only `http/json` protocol is supported (not gRPC or `http/protobuf`, to avoid a protobuf dependency); attribution is coarser than the CLI path (repo-level, not path-level); OTLP payload shapes aren't a versioned public contract either — recheck against Claude Code's docs periodically | Requires the machine's local transcript files to still exist (Claude Code retention policy, not ours); requires a process to be run/kept running | Entirely dependent on the `opencode` CLI exposing a stable, scriptable stats surface; if the real CLI has no such flag, this connector should be treated as a documented gap, not implemented against a guessed internal DB schema |
 
-## Claude Code: why local JSONL transcripts, not OTel
-
-Claude Code also supports an OpenTelemetry pipeline (`CLAUDE_CODE_ENABLE_TELEMETRY=1` plus
-`OTEL_METRICS_EXPORTER`/`OTEL_EXPORTER_OTLP_ENDPOINT` etc.) exporting a `claude_code.token.usage`
-counter with `type` (`input`/`output`/`cacheRead`/`cacheCreation`) and `model` attributes. We did
-not build the first connector on this path because:
-
-1. It requires the user to already run (or stand up) an OTLP collector endpoint — real setup
-   friction for a "pair once" flow.
-2. Per Anthropic's own docs, the standard metric attributes do not include a working directory or
-   git repository by default (`vcs.repository.*` attributes exist but are opt-in and org-wide, not
-   something an individual contributor can flip on their own).
-3. The local JSONL transcripts (`~/.claude/projects/*/*.jsonl`) already carry `cwd` on every line,
-   which gives us project attribution "for free" without asking the user to configure anything —
-   directly satisfying the brief's top attribution priority (session metadata / working directory).
-
-The OTel path is documented here as a legitimate later option (e.g. for org-wide deployments that
-already run a collector), not implemented in this release. **Only pick one path per user** if it's
-ever added — do not sum OTel-reported and transcript-reported tokens together.
+Both Claude Code paths write to the same accounting rules and the same `UsageEvent` table — a user
+could technically enable both, but should not, since Anthropic doesn't guarantee the two surfaces
+report identical numbers for the same requests and nothing here reconciles them against each other.
+The dashboard presents OTel as the default and the CLI collector as "Advanced" specifically to keep
+most users on a single, consistent path.
 
 ## OpenCode: why not the internal database directly
 

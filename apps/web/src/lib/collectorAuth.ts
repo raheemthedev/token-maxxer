@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { prisma } from "./prisma";
 
 const TOKEN_SECRET =
   process.env.COLLECTOR_TOKEN_SECRET || "dev-only-insecure-collector-secret-do-not-use-in-production";
@@ -14,6 +15,18 @@ export function generateCollectorToken(): string {
 
 export function generateProjectSalt(): string {
   return randomBytes(32).toString("hex");
+}
+
+/**
+ * Every collector a user pairs (CLI or OTel) shares one hashing pepper, generated once on that
+ * user's first collector, so project fingerprints stay comparable across their machines/paths.
+ */
+export async function getOrCreateProjectSalt(userId: string): Promise<string> {
+  const existing = await prisma.collector.findFirst({
+    where: { userId },
+    select: { projectSalt: true },
+  });
+  return existing?.projectSalt ?? generateProjectSalt();
 }
 
 const PAIRING_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I

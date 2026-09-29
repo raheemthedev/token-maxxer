@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { PairingCodeGenerator } from "@/components/PairingCodeGenerator";
+import { OtelSetupGenerator } from "@/components/OtelSetupGenerator";
 import { RevokeCollectorButton } from "@/components/RevokeCollectorButton";
 import { DatabaseUnavailableNotice } from "@/components/DatabaseUnavailableNotice";
 import { Card } from "@/components/ui/Card";
@@ -37,7 +38,16 @@ export default async function CollectorPage() {
         </p>
       </div>
 
-      <PairingCodeGenerator serverUrl={serverUrl} />
+      <OtelSetupGenerator />
+
+      <details>
+        <summary className="cursor-pointer text-sm font-medium text-foreground-muted">
+          Advanced: manual collector (required for OpenCode, or for more precise project detection)
+        </summary>
+        <div className="mt-3">
+          <PairingCodeGenerator serverUrl={serverUrl} />
+        </div>
+      </details>
 
       <section>
         <h2 className="mb-3 font-medium">Paired collectors</h2>

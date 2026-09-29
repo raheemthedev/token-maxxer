@@ -65,10 +65,12 @@ next to the leaderboard.
 
 ## Duplicate-count prevention
 
-- **One canonical source per integration.** We ingest Claude Code usage from its own local
-  session metadata, not the OTel pipeline *and* the JSONL transcripts at once — that would double
-  count. Where a tool exposes multiple interfaces to the same underlying requests, the connector
-  picks exactly one and documents which (see docs/SUPPORT_MATRIX.md).
+- **One canonical source per integration, in practice.** Claude Code exposes usage through two
+  surfaces — OTel export and local JSONL transcripts — and this product can ingest either. Using
+  both for the same machine is not blocked technically, but isn't a supported configuration either:
+  Anthropic doesn't guarantee the two surfaces report identical numbers for the same requests, and
+  nothing here reconciles them against each other. The dashboard presents OTel as the default and
+  the CLI collector as "Advanced" specifically to steer most users onto one path.
 - **Idempotent ingestion.** Every `UsageEvent` is uniquely keyed on `(collectorId, sourceEventId)`
   at the database level (`@@unique` in `prisma/schema.prisma`). Re-uploading the same batch (retry,
   collector restart, replayed history) is a no-op on the duplicates.
@@ -81,6 +83,28 @@ next to the leaderboard.
 - **No cross-source addition for the same requests.** If both a tool-level and a provider-level
   integration could report the same underlying API calls, only one may be enabled per user per
   provider at a time in the first release. This is a documented limitation, not solved generally.
+
+## OTel receiver: cumulative vs. delta
+
+`/api/otel/v1/metrics` (`src/lib/otel.ts`) ingests Claude Code's `claude_code.token.usage` OTLP
+counter, which OpenTelemetry allows to be exported with either **cumulative** or **delta**
+aggregation temporality — the payload itself declares which (`aggregationTemporality: 2` for
+cumulative, `1` for delta), so the receiver doesn't guess:
+
+- **Delta**: each exported data point already *is* an increment. It's stored as an `incremental`
+  event keyed on `session.id` + `model` + the data point's own timestamp — structurally identical
+  to a JSONL transcript line.
+- **Cumulative**: each exported data point is a running total since the counter started. Storage
+  keys on `session.id` + `model` only (no timestamp), so every new export for that session+model
+  **upserts** (overwrites) the same row with the latest total — summing the final snapshot per
+  session gives the correct grand total without the receiver needing to diff against a previous
+  value itself. A Claude Code process restart gets a new `session.id` from Claude Code itself, which
+  is exactly the counter-reset boundary — the old session's last-known total is preserved as its
+  own finalized row rather than being overwritten by a counter that restarted from zero.
+
+Four `type` attribute values (`input`, `output`, `cacheRead`, `cacheCreation`) arrive as separate
+data points sharing the same `session.id`+`model`+timestamp; the receiver merges them into the same
+bucket set as everywhere else in this system before persisting one row.
 
 ## Project attribution and reconciliation
 
