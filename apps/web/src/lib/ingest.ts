@@ -3,7 +3,7 @@ import { resolveOrCreateProject } from "./projects";
 import type { ProjectDetectionMethod } from "@token-maxxer/shared";
 
 export interface IngestableEvent {
-  source: "claude_code" | "opencode" | "synthetic";
+  source: "claude_code" | "opencode" | "codex" | "synthetic";
   sourceVersion?: string | null;
   connectorVersion?: string | null;
   provider?: string | null;
@@ -72,7 +72,7 @@ export async function persistUsageEvents(
   let accepted = 0;
   let duplicates = 0;
 
-  for (const event of events) {
+  const rows = events.map((event) => {
     const projectId = event.projectFingerprintHash
       ? (projectIdByFingerprint.get(event.projectFingerprintHash) ?? null)
       : null;
@@ -103,16 +103,26 @@ export async function persistUsageEvents(
       evidenceLevel: "locally_reported" as const,
     };
 
-    await prisma.usageEvent.upsert({
-      where: { collectorId_sourceEventId: { collectorId, sourceEventId: event.sourceEventId } },
-      create: row,
-      update: row,
-    });
-    if (existingIds.has(event.sourceEventId)) {
-      duplicates += 1;
-    } else {
-      accepted += 1;
-    }
+    return row;
+  });
+
+  // Chunked parallel upserts: a first upload of thousands of events would otherwise be thousands
+  // of sequential round trips.
+  const CHUNK = 25;
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    await Promise.all(
+      rows.slice(i, i + CHUNK).map((row) =>
+        prisma.usageEvent.upsert({
+          where: { collectorId_sourceEventId: { collectorId, sourceEventId: row.sourceEventId } },
+          create: row,
+          update: row,
+        }),
+      ),
+    );
+  }
+  for (const event of events) {
+    if (existingIds.has(event.sourceEventId)) duplicates += 1;
+    else accepted += 1;
   }
 
   const unassignedProjects = events.filter((e) => !e.projectFingerprintHash).length;

@@ -85,6 +85,17 @@ async function collectAndUpload(): Promise<void> {
     }
   }
 
+  // Claude Code streams several usage lines per request under one id; keep the fullest reading so
+  // reported counts are real (the server upserts per id, but "already-seen" counts stay honest).
+  const byId = new Map<string, NormalizedUsageEvent>();
+  for (const e of allEvents) {
+    const prev = byId.get(`${e.source}:${e.sourceEventId}`);
+    if (!prev || computeHeadlineTotal(e.tokens) >= computeHeadlineTotal(prev.tokens)) {
+      byId.set(`${e.source}:${e.sourceEventId}`, e);
+    }
+  }
+  allEvents = Array.from(byId.values());
+
   if (allEvents.length === 0) {
     console.log("Nothing new to upload.");
     return;

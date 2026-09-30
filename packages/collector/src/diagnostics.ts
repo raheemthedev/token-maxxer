@@ -1,8 +1,9 @@
 import { claudeCodeConnector } from "./connectors/claudeCode.js";
 import { opencodeConnector } from "./connectors/opencode.js";
+import { codexConnector } from "./connectors/codex.js";
 import type { ConnectorStatus } from "./connectors/types.js";
 
-export const connectors = [claudeCodeConnector, opencodeConnector];
+export const connectors = [claudeCodeConnector, codexConnector, opencodeConnector];
 
 /**
  * Content-free status snapshot: tool detection, setup guidance, timestamps. Never includes

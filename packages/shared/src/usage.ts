@@ -5,7 +5,7 @@
  * ever belongs in here.
  */
 
-export type UsageSource = "claude_code" | "opencode" | "synthetic";
+export type UsageSource = "claude_code" | "opencode" | "codex" | "synthetic";
 
 /** Whether a record is a delta since the last observation, or a cumulative snapshot. */
 export type UsageEventType = "incremental" | "cumulative_snapshot";

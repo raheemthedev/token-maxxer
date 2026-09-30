@@ -14,7 +14,7 @@ const tokenBucketsSchema = z.object({
 });
 
 const eventSchema = z.object({
-  source: z.enum(["claude_code", "opencode", "synthetic"]),
+  source: z.enum(["claude_code", "opencode", "codex", "synthetic"]),
   sourceVersion: z.string().nullable().optional(),
   connectorVersion: z.string().nullable().optional(),
   provider: z.string().nullable().optional(),

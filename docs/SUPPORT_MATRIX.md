@@ -35,6 +35,18 @@ storage. **Action item before enabling this connector for real users:** confirm 
 shape against a real `opencode` install, since this was implemented from documentation review, not
 a live install (none was available in this environment).
 
+## Codex CLI (CLI collector only)
+
+Reads `~/.codex/sessions/**/rollout-*.jsonl`, streaming line by line (single files reach hundreds
+of MB). Each `token_count` event carries a cumulative `total_token_usage`, so one
+`cumulative_snapshot` per thread is emitted (key: the thread `id`; subagent "guardian" threads share
+the parent's `session_id` but keep their own counters, so `session_id` must not be used as the key).
+OpenAI semantics differ from Anthropic's: `input_tokens` **includes** cached input and
+`output_tokens` includes reasoning, so buckets are made exclusive (input − cached, cacheRead =
+cached, reasoning folded into output). Verified against an independent count of the same local
+logs: exact match (19 threads, 922,394,091 tokens). No OTel path exists for Codex. Not supported:
+the ChatGPT app (no token counts exposed).
+
 ## Later candidates (not implemented this release)
 
 - **Zed** — model access can go through provider APIs, Zed-hosted access, or external agents;
