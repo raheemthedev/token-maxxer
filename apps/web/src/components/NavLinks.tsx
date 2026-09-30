@@ -14,7 +14,7 @@ export function NavLinks({ links }: { links: { href: string; label: string }[] }
             key={l.href}
             href={l.href}
             aria-current={active ? "page" : undefined}
-            className={`rounded-full px-3 py-1.5 font-medium transition-colors ${
+            className={`whitespace-nowrap rounded-full px-3 py-1.5 font-medium transition-colors ${
               active ? "bg-surface-muted text-foreground" : "text-foreground-muted hover:bg-surface-muted hover:text-foreground"
             }`}
           >

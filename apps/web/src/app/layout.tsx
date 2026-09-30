@@ -62,7 +62,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                   >
                     <button
                       type="submit"
-                      className="rounded-full px-3 py-1.5 font-medium text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground"
+                      className="whitespace-nowrap rounded-full px-3 py-1.5 font-medium text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground"
                     >
                       Sign out
                     </button>
