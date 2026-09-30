@@ -72,7 +72,7 @@ export default async function CollectorPage() {
                     <p className="mt-0.5 text-xs text-foreground-muted">Last upload: {c.lastIngestSummary}</p>
                   )}
                 </div>
-                {c.status === "active" && <RevokeCollectorButton id={c.id} />}
+                <RevokeCollectorButton id={c.id} active={c.status === "active"} />
               </div>
             ))}
           </Card>

@@ -3,25 +3,44 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function RevokeCollectorButton({ id }: { id: string }) {
+const buttonClass =
+  "rounded-full border border-red-200 px-3 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50";
+
+export function RevokeCollectorButton({ id, active }: { id: string; active: boolean }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
-  async function revoke() {
-    if (!confirm("Revoke this collector? It will no longer be able to upload usage.")) return;
+  async function run(url: string, confirmText: string) {
+    if (!confirm(confirmText)) return;
     setPending(true);
-    await fetch(`/api/collectors/${id}`, { method: "DELETE" });
+    await fetch(url, { method: "DELETE" });
     setPending(false);
     router.refresh();
   }
 
   return (
-    <button
-      onClick={revoke}
-      disabled={pending}
-      className="rounded-full border border-red-200 px-3 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-900/20"
-    >
-      Revoke
-    </button>
+    <div className="flex gap-2">
+      {active && (
+        <button
+          disabled={pending}
+          onClick={() => run(`/api/collectors/${id}`, "Revoke this collector? It will no longer be able to upload usage.")}
+          className={buttonClass}
+        >
+          Revoke
+        </button>
+      )}
+      <button
+        disabled={pending}
+        onClick={() =>
+          run(
+            `/api/collectors/${id}?usage=delete`,
+            "Revoke this collector AND permanently delete all usage it uploaded? This removes it from your totals and cannot be undone.",
+          )
+        }
+        className={buttonClass}
+      >
+        Delete its usage
+      </button>
+    </div>
   );
 }
