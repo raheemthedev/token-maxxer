@@ -64,8 +64,13 @@ export default async function CollectorPage() {
                   </p>
                   <p className="mt-0.5 text-xs text-foreground-muted">
                     Paired {c.createdAt.toLocaleDateString()}
-                    {c.lastSeenAt && ` · last seen ${new Date(c.lastSeenAt).toLocaleString()}`}
+                    {c.lastSeenAt
+                      ? ` · last upload ${new Date(c.lastSeenAt).toLocaleString()}`
+                      : c.status === "active" && " · nothing received yet"}
                   </p>
+                  {c.lastIngestSummary && (
+                    <p className="mt-0.5 text-xs text-foreground-muted">Last upload: {c.lastIngestSummary}</p>
+                  )}
                 </div>
                 {c.status === "active" && <RevokeCollectorButton id={c.id} />}
               </div>

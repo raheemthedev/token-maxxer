@@ -63,6 +63,33 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   return NextResponse.json({ project: toPrivateProjectView(updated) });
 }
 
+/**
+ * Permanently deletes a project AND the usage recorded against it (its total leaves the user's
+ * aggregate too — deliberately different from hiding, which never changes totals). Any projects
+ * previously merged into this one are redirect stubs with no usage of their own, so they go too.
+ * If a collector is still reporting from the same repository, the project reappears on next upload.
+ */
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  }
+
+  const project = await prisma.project.findUnique({ where: { id } });
+  if (!project || project.userId !== session.user.id) {
+    return NextResponse.json({ error: "Project not found." }, { status: 404 });
+  }
+
+  const [events] = await prisma.$transaction([
+    prisma.usageEvent.deleteMany({ where: { projectId: id, userId: session.user.id } }),
+    prisma.project.deleteMany({ where: { mergedIntoId: id, userId: session.user.id } }),
+    prisma.project.delete({ where: { id } }),
+  ]);
+
+  return NextResponse.json({ ok: true, deletedUsageEvents: events.count });
+}
+
 function toPrivateProjectView(project: {
   id: string;
   opaqueId: string;

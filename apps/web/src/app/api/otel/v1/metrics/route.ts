@@ -33,11 +33,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid or missing JSON body." }, { status: 400 });
   }
 
-  const events = parseOtlpMetrics(payload, collector.projectSalt);
+  const { events, summary } = parseOtlpMetrics(payload, collector.projectSalt);
 
   await prisma.collector.update({
     where: { id: collector.id },
-    data: { lastSeenAt: new Date() },
+    data: { lastSeenAt: new Date(), lastIngestSummary: summary },
   });
 
   if (events.length === 0) {

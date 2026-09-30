@@ -41,6 +41,27 @@ export function ProjectCard({
     router.refresh();
   }
 
+  async function handleDelete() {
+    if (
+      !confirm(
+        `Permanently delete this project and its ${project.tokens.toLocaleString()} tokens of usage? ` +
+          "This removes them from your totals too. (If a collector is still reporting from this repository, it will reappear.)",
+      )
+    ) {
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    const res = await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
+    setSaving(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? "Delete failed.");
+      return;
+    }
+    router.refresh();
+  }
+
   async function handleMerge() {
     if (!mergeTarget) return;
     setSaving(true);
@@ -132,6 +153,13 @@ export function ProjectCard({
           className="rounded-full border border-border-soft px-3.5 py-1.5 text-sm font-medium transition-colors hover:bg-surface-muted disabled:opacity-50"
         >
           {project.hidden ? "Unhide" : "Hide"}
+        </button>
+        <button
+          disabled={saving}
+          onClick={handleDelete}
+          className="rounded-full border border-red-200 px-3.5 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50"
+        >
+          Delete
         </button>
 
         {mergeTargets.length > 0 && (

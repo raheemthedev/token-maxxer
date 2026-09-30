@@ -89,6 +89,9 @@ model Collector {
   projectSalt     String // per-user hashing pepper, handed back to every collector this user pairs
   status          String    @default("active") // active | revoked
   lastSeenAt      DateTime?
+  // Content-free description of the most recent upload (e.g. "saw claude_code.token.usage×4 → 1
+  // usage event(s)"). Shown to the owning user so a misconfigured exporter is debuggable.
+  lastIngestSummary String?
   createdAt       DateTime  @default(now())
   revokedAt       DateTime?
 
