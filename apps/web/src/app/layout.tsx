@@ -4,6 +4,7 @@ import Link from "next/link";
 import "./globals.css";
 import { auth, signOut, isGithubConfigured, isEmailConfigured } from "@/auth";
 import { Badge } from "@/components/ui/Badge";
+import { NavLinks } from "@/components/NavLinks";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Token Maxxer",
+  title: { default: "Token Maxxer — show your usage, show what you shipped", template: "%s · Token Maxxer" },
   description: "Show your usage. Show what you shipped.",
 };
 
@@ -31,7 +32,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
         <header className="sticky top-0 z-10 border-b border-border-soft/70 bg-background/80 backdrop-blur">
-          <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-3 sm:py-4">
             <Link href="/" className="flex items-center gap-2 text-lg font-semibold tracking-tight">
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-foreground">
                 T
@@ -39,28 +40,19 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               token<span className="text-accent">maxxer</span>
             </Link>
             <nav className="flex items-center gap-1 text-sm">
-              <Link
-                href="/"
-                className="rounded-full px-3 py-1.5 font-medium text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground"
-              >
-                Leaderboard
-              </Link>
+              <NavLinks
+                links={[
+                  { href: "/", label: "Leaderboard" },
+                  ...(session?.user
+                    ? [
+                        { href: "/dashboard", label: "Dashboard" },
+                        ...(session.user.handle ? [{ href: `/u/${session.user.handle}`, label: "My profile" }] : []),
+                      ]
+                    : []),
+                ]}
+              />
               {session?.user ? (
                 <>
-                  <Link
-                    href="/dashboard"
-                    className="rounded-full px-3 py-1.5 font-medium text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground"
-                  >
-                    Dashboard
-                  </Link>
-                  {session.user.handle && (
-                    <Link
-                      href={`/u/${session.user.handle}`}
-                      className="rounded-full px-3 py-1.5 font-medium text-foreground-muted transition-colors hover:bg-surface-muted hover:text-foreground"
-                    >
-                      My profile
-                    </Link>
-                  )}
                   <form
                     action={async () => {
                       "use server";

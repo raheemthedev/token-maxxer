@@ -1,4 +1,7 @@
+import { cache } from "react";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { CopyLinkButton } from "@/components/CopyLinkButton";
 import { getPublicProfile } from "@/lib/profile";
 import { EvidenceBadge } from "@/components/EvidenceBadge";
 import { DatabaseUnavailableNotice } from "@/components/DatabaseUnavailableNotice";
@@ -21,11 +24,28 @@ function compact(n: number): string {
   return String(n);
 }
 
+const loadProfile = cache(getPublicProfile);
+
+export async function generateMetadata({ params }: { params: Promise<{ handle: string }> }): Promise<Metadata> {
+  const { handle } = await params;
+  try {
+    const profile = await loadProfile(handle);
+    if (!profile) return { title: "Profile not found" };
+    const name = profile.name ?? `@${profile.handle}`;
+    return {
+      title: name,
+      description: `${name} has used ${compact(profile.totalTokens)} AI tokens while building — see the tools, models and projects behind it on Token Maxxer.`,
+    };
+  } catch {
+    return { title: "Profile" };
+  }
+}
+
 export default async function ProfilePage({ params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params;
   let profile: Awaited<ReturnType<typeof getPublicProfile>>;
   try {
-    profile = await getPublicProfile(handle);
+    profile = await loadProfile(handle);
   } catch {
     return <DatabaseUnavailableNotice />;
   }
@@ -55,9 +75,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
               <p className="text-foreground-muted">@{profile.handle}</p>
               {profile.bio && <p className="mt-1 text-sm">{profile.bio}</p>}
             </div>
-            {profile.publishedAt && (
-              <Badge tone="neutral">On the board since {profile.publishedAt.toISOString().slice(0, 10)}</Badge>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {profile.publishedAt && (
+                <Badge tone="neutral">On the board since {profile.publishedAt.toISOString().slice(0, 10)}</Badge>
+              )}
+              <CopyLinkButton />
+            </div>
           </div>
 
           <div className="mt-8 flex flex-wrap items-end gap-x-10 gap-y-4">

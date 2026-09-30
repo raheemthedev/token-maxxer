@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Card } from "@/components/ui/Card";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -10,6 +11,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     </Card>
   );
 }
+
+export const metadata: Metadata = { title: "How counting works" };
 
 export default function AboutPage() {
   return (

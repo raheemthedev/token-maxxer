@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/auth";
@@ -8,6 +9,8 @@ import { RevokeCollectorButton } from "@/components/RevokeCollectorButton";
 import { DatabaseUnavailableNotice } from "@/components/DatabaseUnavailableNotice";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+
+export const metadata: Metadata = { title: "Connect your tools" };
 
 export default async function CollectorPage() {
   const session = await auth();
