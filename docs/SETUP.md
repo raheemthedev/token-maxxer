@@ -71,7 +71,16 @@ result into either your shell profile (`~/.zshrc` etc. — works if Claude Code 
 terminal) or `~/.claude/settings.json`'s `"env"` key (more reliable if Claude Code is launched
 through a GUI app, since shell profiles aren't always sourced by GUI-launched processes). Then
 start a *new* Claude Code session — env vars only apply to processes started after they're set, so
-an already-running session won't pick them up retroactively.
+an already-running session won't pick them up retroactively. If you use the desktop app, fully quit
+and reopen it first.
+
+**Checking that it works:** the collector list (Dashboard → Collector) shows a "Last upload" note
+for each collector, e.g. `saw claude_code.session.count×1 → 0 usage event(s)`. Claude Code reports
+`session.count` as soon as a session starts, so within about a minute of starting a new session you
+should see the note appear even before any tokens are used; `claude_code.token.usage` follows once a
+request has been made. "Nothing received yet" means no export has reached the server at all — the
+new session didn't pick up the config (restart the app / open a new terminal), or the snippet's
+token was revoked.
 
 **Manual (advanced, required for OpenCode):**
 

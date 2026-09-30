@@ -29,6 +29,20 @@ export function RevokeCollectorButton({ id, active }: { id: string; active: bool
           Revoke
         </button>
       )}
+      {!active && (
+        <button
+          disabled={pending}
+          onClick={() =>
+            run(
+              `/api/collectors/${id}?remove=true`,
+              "Remove this revoked collector from the list? Usage it already uploaded is kept.",
+            )
+          }
+          className={buttonClass}
+        >
+          Remove
+        </button>
+      )}
       <button
         disabled={pending}
         onClick={() =>

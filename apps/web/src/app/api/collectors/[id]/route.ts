@@ -20,17 +20,30 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     return NextResponse.json({ error: "Collector not found." }, { status: 404 });
   }
 
-  const deleteUsage = new URL(request.url).searchParams.get("usage") === "delete";
+  const params_ = new URL(request.url).searchParams;
+  const deleteUsage = params_.get("usage") === "delete";
+  // Only an already-revoked collector can be removed from the list. Usage it uploaded is kept
+  // (UsageEvent.collectorId is SetNull) unless `usage=delete` is also passed.
+  const remove = params_.get("remove") === "true";
+  if (remove && collector.status !== "revoked") {
+    return NextResponse.json({ error: "Revoke the collector before removing it." }, { status: 400 });
+  }
 
-  await prisma.collector.update({
-    where: { id },
-    data: { status: "revoked", revokedAt: collector.revokedAt ?? new Date() },
-  });
+  if (!remove) {
+    await prisma.collector.update({
+      where: { id },
+      data: { status: "revoked", revokedAt: collector.revokedAt ?? new Date() },
+    });
+  }
 
   let deletedUsageEvents = 0;
   if (deleteUsage) {
     const result = await prisma.usageEvent.deleteMany({ where: { collectorId: id, userId: session.user.id } });
     deletedUsageEvents = result.count;
+  }
+
+  if (remove) {
+    await prisma.collector.delete({ where: { id } });
   }
 
   return NextResponse.json({ ok: true, deletedUsageEvents });

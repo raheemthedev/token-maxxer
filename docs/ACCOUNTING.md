@@ -103,8 +103,24 @@ cumulative, `1` for delta), so the receiver doesn't guess:
   own finalized row rather than being overwritten by a counter that restarted from zero.
 
 Four `type` attribute values (`input`, `output`, `cacheRead`, `cacheCreation`) arrive as separate
-data points sharing the same `session.id`+`model`+timestamp; the receiver merges them into the same
-bucket set as everywhere else in this system before persisting one row.
+data points; the receiver merges them into the same bucket set as everywhere else in this system
+before persisting one row per (session, model, project[, timestamp]).
+
+Every distinct attribute combination is its own OTLP time series (e.g. `query_source` =
+`main`/`subagent`/`auxiliary`, fast mode, effort level). All of them are real token usage, so
+series that share a row's identity are **summed**, never overwritten. `session.id` and `vcs.*` are
+read from the data point's attributes first (where Claude Code puts them), the resource second. With
+no `session.id` at all, a cumulative series' own start time is used as the reset epoch instead.
+
+Values that aren't finite, are negative, or exceed the 32-bit column range are skipped (and
+counted in the collector's "last upload" note) rather than stored or allowed to fail the write.
+
+**Verification status (be honest about it):** the transport, header format and authentication were
+verified with a genuine Claude Code 2.1.284 process exporting `claude_code.session.count` and
+`claude_code.active_time.total` to production. A real `claude_code.token.usage` export has **not**
+been captured (it requires an authenticated API request, and the bundled binary used for that test
+was not logged in), so the token-usage handling is verified against payloads built from Claude Code's
+documented schema plus the attribute layout seen in the real metrics above — not against a live one.
 
 ## Project attribution and reconciliation
 
