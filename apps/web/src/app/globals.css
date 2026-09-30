@@ -6,16 +6,19 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #f7f6f4;
-  --surface: #ffffff;
-  --surface-muted: #f1efec;
-  --foreground: #17150f;
-  --foreground-muted: #6b6863;
-  --border-soft: #eae7e1;
+  --background: #ededec;
+  --surface: #fbfbfb;
+  --surface-muted: #e6e6e4;
+  --foreground: #141414;
+  --foreground-muted: #77767a;
+  --border-soft: #e2e2e0;
   --accent: #e8622c;
   --accent-foreground: #ffffff;
-  --accent-soft: #fde9de;
-  --shadow-card: 0 1px 2px rgba(23, 21, 15, 0.04), 0 8px 24px -12px rgba(23, 21, 15, 0.10);
+  --accent-soft: #fbe6da;
+  --ink: #1b1b1b;
+  --positive: #0f9d58;
+  --positive-soft: #dcf5e6;
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 1px 2px rgba(20, 20, 20, 0.04), 0 18px 40px -24px rgba(20, 20, 20, 0.22);
 }
 
 @theme inline {
@@ -28,6 +31,9 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent-soft: var(--accent-soft);
+  --color-ink: var(--ink);
+  --color-positive: var(--positive);
+  --color-positive-soft: var(--positive-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -41,11 +47,49 @@ body {
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-border-soft);
-  border-radius: 1.25rem;
+  border-radius: 1.75rem;
   box-shadow: var(--shadow-card);
 }
 
 .stat-number {
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.035em;
 }
+
+.eyebrow {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--foreground-muted);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0.7rem 1.4rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease;
+}
+.pill:active { transform: scale(0.98); }
+.pill-dark { background: linear-gradient(180deg, #3a3a3a, #161616); color: #fff; box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.6); }
+.pill-dark:hover { opacity: 0.92; }
+.pill-light { background: var(--surface); color: var(--foreground); box-shadow: 0 1px 2px rgba(20, 20, 20, 0.08), 0 0 0 1px var(--border-soft) inset; }
+.pill-light:hover { background: #fff; }
+
+.glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.55));
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(14px);
+}
+
+.segmented { display: inline-flex; gap: 2px; border-radius: 9999px; background: var(--surface-muted); padding: 4px; box-shadow: inset 0 1px 2px rgba(20, 20, 20, 0.06); }
+.segmented > * { border-radius: 9999px; padding: 0.4rem 1rem; font-size: 0.8rem; font-weight: 500; color: var(--foreground-muted); transition: all 0.15s ease; }
+.segmented > [aria-current="true"] { background: var(--surface); color: var(--foreground); box-shadow: 0 1px 3px rgba(20, 20, 20, 0.12); }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

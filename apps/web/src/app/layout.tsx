@@ -32,7 +32,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
         <header className="sticky top-0 z-10 border-b border-border-soft/70 bg-background/80 backdrop-blur">
-          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-3 sm:py-4">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-3 sm:py-4">
             <Link href="/" className="flex items-center gap-2 text-lg font-semibold tracking-tight">
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-foreground">
                 T
@@ -83,9 +83,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             </nav>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-10">{children}</main>
+        <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-10">{children}</main>
         <footer className="border-t border-border-soft px-5 py-10">
-          <div className="mx-auto flex max-w-5xl flex-wrap items-start justify-between gap-6 text-sm text-foreground-muted">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-start justify-between gap-6 text-sm text-foreground-muted">
             <div>
               <p className="font-medium text-foreground">token<span className="text-accent">maxxer</span></p>
               <p className="mt-1 max-w-xs text-xs">A friendly community leaderboard — not a fraud-proof competition. Evidence labels say exactly what a number is.</p>

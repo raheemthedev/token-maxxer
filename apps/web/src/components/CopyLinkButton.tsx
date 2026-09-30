@@ -8,16 +8,17 @@ export function CopyLinkButton() {
     <button
       onClick={async () => {
         try {
-          await navigator.clipboard.writeText(window.location.href);
+          await navigator.clipboard.writeText(window.location.href.split("?")[0]);
           setCopied(true);
           setTimeout(() => setCopied(false), 1800);
         } catch {
           /* clipboard unavailable — the URL is still in the address bar */
         }
       }}
-      className="rounded-full border border-border-soft bg-surface px-3.5 py-1.5 text-xs font-medium transition-colors hover:bg-surface-muted"
+      className="pill pill-dark"
     >
-      {copied ? "Link copied ✓" : "Copy profile link"}
+      <span aria-hidden>{copied ? "✓" : "↗"}</span>
+      {copied ? "Link copied" : "Share profile"}
     </button>
   );
 }

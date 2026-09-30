@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { ShareBar } from "@/components/ui/Bars";
 import { EvidenceBadge } from "@/components/EvidenceBadge";
+import { Segmented } from "@/components/ui/Segmented";
 
 const TABS: { key: LeaderboardPeriod; label: string; blurb: string }[] = [
   { key: "weekly", label: "This week", blurb: "since Monday 00:00 UTC" },
@@ -43,12 +44,12 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
 
   return (
     <div className="space-y-8">
-      <section className="relative overflow-hidden rounded-[1.75rem] border border-border-soft bg-surface p-7 shadow-[var(--shadow-card)] sm:p-10">
+      <section className="relative overflow-hidden rounded-[2.25rem] border border-white/80 bg-gradient-to-b from-white to-surface p-7 shadow-[var(--shadow-card)] sm:p-12">
         <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-accent-soft blur-3xl" />
         <div className="relative grid gap-8 lg:grid-cols-[1.4fr_1fr] lg:items-end">
           <div>
             <Badge tone="accent">Community leaderboard</Badge>
-            <h1 className="mt-4 text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">
+            <h1 className="mt-4 text-5xl font-semibold leading-[1.02] tracking-[-0.04em] sm:text-6xl">
               Show your usage.
               <br />
               <span className="text-accent">Show what you shipped.</span>
@@ -60,42 +61,30 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
                 href={session?.user ? "/dashboard" : "/sign-in"}
-                className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-accent-foreground shadow-sm transition-opacity hover:opacity-90"
+                className="pill pill-dark"
               >
                 {session?.user ? "Open your dashboard" : "Get on the board"}
               </Link>
-              <Link href="/about" className="rounded-full border border-border-soft px-5 py-2.5 text-sm font-medium transition-colors hover:bg-surface-muted">
+              <Link href="/about" className="pill pill-light">
                 How counting works
               </Link>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-2xl bg-surface-muted p-4">
-              <div className="stat-number text-3xl font-semibold">{rows.length}</div>
-              <div className="text-xs uppercase tracking-wide text-foreground-muted">Builders</div>
+            <div className="rounded-3xl bg-surface-muted/70 p-5">
+              <div className="stat-number text-4xl font-semibold">{rows.length}</div>
+              <div className="eyebrow mt-1">Builders</div>
             </div>
-            <div className="rounded-2xl bg-surface-muted p-4">
-              <div className="stat-number text-3xl font-semibold">{compact(total)}</div>
-              <div className="text-xs uppercase tracking-wide text-foreground-muted">Tokens {tab.label.toLowerCase()}</div>
+            <div className="rounded-3xl bg-surface-muted/70 p-5">
+              <div className="stat-number text-4xl font-semibold">{compact(total)}</div>
+              <div className="eyebrow mt-1">Tokens · {tab.label.toLowerCase()}</div>
             </div>
           </div>
         </div>
       </section>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1 rounded-full border border-border-soft bg-surface p-1">
-          {TABS.map((t) => (
-            <Link
-              key={t.key}
-              href={`/?period=${t.key}`}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                period === t.key ? "bg-accent text-accent-foreground shadow-sm" : "text-foreground-muted hover:text-foreground"
-              }`}
-            >
-              {t.label}
-            </Link>
-          ))}
-        </div>
+        <Segmented active={period} options={TABS.map((t) => ({ key: t.key, label: t.label, href: `/?period=${t.key}` }))} />
         <p className="text-xs text-foreground-muted">
           Counting {tab.blurb} · input + output + cache tokens · ranks consumption, not productivity
         </p>
@@ -113,7 +102,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
           {rows.map((row) => (
             <div
               key={row.userId}
-              className="relative flex items-center gap-4 px-5 py-5 transition-colors first:rounded-t-[1.25rem] last:rounded-b-[1.25rem] hover:bg-surface-muted/60"
+              className="relative flex items-center gap-4 px-5 py-5 transition-colors first:rounded-t-[1.75rem] last:rounded-b-[1.75rem] hover:bg-surface-muted/60"
             >
               <Link href={`/u/${row.handle}`} className="absolute inset-0" aria-label={row.name ?? row.handle} />
 

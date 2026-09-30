@@ -9,6 +9,9 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { BUCKET_COLORS, ShareBar, StackedBar } from "@/components/ui/Bars";
+import { ActivityCard, parseRange } from "@/components/ActivityCard";
+import { getDailySeriesForHandle } from "@/lib/series";
+import Link from "next/link";
 
 const SOURCE_LABELS: Record<string, string> = {
   claude_code: "Claude Code",
@@ -41,8 +44,9 @@ export async function generateMetadata({ params }: { params: Promise<{ handle: s
   }
 }
 
-export default async function ProfilePage({ params }: { params: Promise<{ handle: string }> }) {
+export default async function ProfilePage({ params, searchParams }: { params: Promise<{ handle: string }>; searchParams: Promise<{ range?: string }> }) {
   const { handle } = await params;
+  const range = parseRange((await searchParams).range);
   let profile: Awaited<ReturnType<typeof getPublicProfile>>;
   try {
     profile = await loadProfile(handle);
@@ -54,6 +58,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
   const maxSource = Math.max(1, ...profile.bySource.map((s) => s.tokens));
   const maxModel = Math.max(1, ...profile.byModel.map((m) => m.tokens));
   const b = profile.bucketTotals;
+  const series = await getDailySeriesForHandle(handle, range).catch(() => null);
+  const inputish = b.input + b.cacheRead + b.cacheWrite;
+  const cacheShare = inputish > 0 ? Math.round((b.cacheRead / inputish) * 100) : 0;
 
   return (
     <div className="space-y-6">
@@ -63,44 +70,41 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
         </Card>
       )}
 
-      <Card className="relative overflow-hidden p-0">
-        <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-br from-accent-soft via-accent-soft to-transparent" />
-        <div className="relative p-6 sm:p-8">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="rounded-full ring-4 ring-surface">
-              <Avatar src={profile.image} alt={profile.name ?? profile.handle} size={72} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h1 className="truncate text-2xl font-semibold tracking-tight">{profile.name ?? `@${profile.handle}`}</h1>
-              <p className="text-foreground-muted">@{profile.handle}</p>
-              {profile.bio && <p className="mt-1 text-sm">{profile.bio}</p>}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {profile.publishedAt && (
-                <Badge tone="neutral">On the board since {profile.publishedAt.toISOString().slice(0, 10)}</Badge>
-              )}
-              <CopyLinkButton />
-            </div>
-          </div>
+      <div className="grid gap-6 lg:grid-cols-[1.15fr_1fr]">
+        <div className="space-y-6">
+          <div className="card relative overflow-hidden p-6 sm:p-8">
+            <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-accent-soft blur-3xl" />
+            <div className="relative">
+              <div className="flex items-center gap-4">
+                <div className="rounded-full ring-4 ring-surface">
+                  <Avatar src={profile.image} alt={profile.name ?? profile.handle} size={64} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h1 className="truncate text-2xl font-semibold tracking-tight">{profile.name ?? `@${profile.handle}`}</h1>
+                  <p className="text-sm text-foreground-muted">@{profile.handle}</p>
+                </div>
+                {profile.publishedAt && <Badge tone="neutral">Since {profile.publishedAt.toISOString().slice(0, 10)}</Badge>}
+              </div>
+              {profile.bio && <p className="mt-4 text-sm">{profile.bio}</p>}
 
-          <div className="mt-8 flex flex-wrap items-end gap-x-10 gap-y-4">
-            <div>
-              <div className="text-xs font-medium uppercase tracking-wide text-foreground-muted">Tokens, all time</div>
-              <div className="stat-number text-5xl font-semibold leading-none sm:text-6xl">
-                {profile.totalTokens.toLocaleString()}
+              <div className="eyebrow mt-8">Tokens processed · all time</div>
+              <div className="stat-number mt-2 text-5xl font-semibold leading-none sm:text-7xl">
+                {compact(profile.totalTokens)}
                 {profile.hasUnknownCategories && <span className="ml-1 text-2xl text-accent">*</span>}
               </div>
-              <div className="mt-1 text-sm text-foreground-muted">{compact(profile.totalTokens)} processed · headline total</div>
-            </div>
-            <div className="flex gap-8">
-              <Mini label="Models" value={profile.byModel.length} />
-              <Mini label="Tools" value={profile.bySource.length} />
-              <Mini label="Projects" value={profile.projects.length} />
+              <p className="stat-number mt-2 text-sm text-foreground-muted">{profile.totalTokens.toLocaleString()} headline total</p>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <CopyLinkButton />
+                <Link href="/" className="pill pill-light">
+                  Leaderboard
+                </Link>
+              </div>
             </div>
           </div>
 
-          <div className="mt-8 border-t border-border-soft pt-6">
-            <h2 className="mb-3 text-sm font-medium text-foreground-muted">Where the tokens went</h2>
+          <Card>
+            <h2 className="eyebrow mb-4">Where the tokens went</h2>
             <StackedBar
               segments={[
                 { label: "Fresh input", value: b.input, color: BUCKET_COLORS.input },
@@ -116,17 +120,30 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
                 </p>
               }
             />
-          </div>
+          </Card>
         </div>
-      </Card>
+
+        {series ? (
+          <ActivityCard
+            series={series}
+            range={range}
+            basePath={`/u/${profile.handle}`}
+            rows={[
+              { icon: "◐", label: "Cache share of input", value: `${cacheShare}%` },
+              { icon: "◍", label: "Models used", value: String(profile.byModel.length) },
+              { icon: "▦", label: "Tools", value: String(profile.bySource.length) },
+            ]}
+          />
+        ) : null}
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <h2 className="mb-4 text-sm font-medium text-foreground-muted">By tool</h2>
-          <ul className="space-y-4">
+          <h2 className="eyebrow mb-5">By tool</h2>
+          <ul className="space-y-5">
             {profile.bySource.map((s) => (
               <li key={s.source}>
-                <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
+                <div className="mb-2 flex items-center justify-between gap-3 text-sm">
                   <span className="flex items-center gap-2 font-medium">
                     {SOURCE_LABELS[s.source] ?? s.source} <EvidenceBadge level={s.evidenceLevel} />
                   </span>
@@ -138,11 +155,11 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
           </ul>
         </Card>
         <Card>
-          <h2 className="mb-4 text-sm font-medium text-foreground-muted">By model</h2>
-          <ul className="space-y-4">
+          <h2 className="eyebrow mb-5">By model</h2>
+          <ul className="space-y-5">
             {profile.byModel.slice(0, 8).map((m) => (
               <li key={m.model}>
-                <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
+                <div className="mb-2 flex items-center justify-between gap-3 text-sm">
                   <span className="truncate font-mono text-[13px]">{m.model}</span>
                   <span className="stat-number font-semibold">{compact(m.tokens)}</span>
                 </div>
@@ -154,7 +171,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
       </div>
 
       <section>
-        <h2 className="mb-3 text-sm font-medium text-foreground-muted">Projects</h2>
+        <h2 className="eyebrow mb-3">Projects</h2>
         {profile.projects.length === 0 ? (
           <Card className="text-sm text-foreground-muted">No public projects yet — detected projects stay private until their owner approves them.</Card>
         ) : (
@@ -176,7 +193,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
                   </Badge>
                 </div>
                 {p.description && <p className="mt-1 text-sm text-foreground-muted">{p.description}</p>}
-                <p className="stat-number mt-4 text-lg font-semibold">
+                <p className="stat-number mt-4 text-2xl font-semibold">
                   {compact(p.tokens)} <span className="text-sm font-normal text-foreground-muted">tokens</span>
                 </p>
               </Card>
@@ -184,15 +201,6 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
           </div>
         )}
       </section>
-    </div>
-  );
-}
-
-function Mini({ label, value }: { label: string; value: number }) {
-  return (
-    <div>
-      <div className="stat-number text-2xl font-semibold">{value}</div>
-      <div className="text-xs uppercase tracking-wide text-foreground-muted">{label}</div>
     </div>
   );
 }

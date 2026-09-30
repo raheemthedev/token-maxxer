@@ -9,8 +9,9 @@ import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 import { DatabaseUnavailableNotice } from "@/components/DatabaseUnavailableNotice";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { StatTile } from "@/components/ui/StatTile";
-import { BUCKET_COLORS, ShareBar, StackedBar } from "@/components/ui/Bars";
+import { DashboardOverview } from "@/components/DashboardOverview";
+import { parseRange } from "@/components/ActivityCard";
+import { ShareBar } from "@/components/ui/Bars";
 
 const SOURCE_LABELS: Record<string, string> = { claude_code: "Claude Code", codex: "Codex CLI", opencode: "OpenCode", synthetic: "Demo" };
 function compact(n: number): string {
@@ -22,7 +23,8 @@ function compact(n: number): string {
 
 export const metadata: Metadata = { title: "Dashboard" };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
+  const range = parseRange((await searchParams).range);
   const session = await auth();
   if (!session?.user?.id) redirect("/sign-in");
 
@@ -34,7 +36,6 @@ export default async function DashboardPage() {
   }
   const visibleProjects = data.projects.filter((p) => !p.hidden);
   const hiddenProjects = data.projects.filter((p) => p.hidden);
-  const activeCollectors = data.collectors.filter((c) => c.status === "active").length;
 
   return (
     <div className="space-y-8">
@@ -76,31 +77,7 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="sm:col-span-2">
-          <StatTile label="Total tokens" value={data.totalTokens.toLocaleString()} caption={data.totalTokens > 0 ? `${compact(data.totalTokens)} processed across ${data.bySource.length} tool${data.bySource.length === 1 ? "" : "s"}` : undefined} />
-          {data.totalTokens > 0 && (
-            <div className="mt-5">
-              <StackedBar
-                segments={[
-                  { label: "Fresh input", value: data.buckets.input, color: BUCKET_COLORS.input },
-                  { label: "Output", value: data.buckets.output, color: BUCKET_COLORS.output },
-                  { label: "Cache read", value: data.buckets.cacheRead, color: BUCKET_COLORS.cacheRead },
-                  { label: "Cache write", value: data.buckets.cacheWrite, color: BUCKET_COLORS.cacheWrite },
-                ]}
-              />
-            </div>
-          )}
-        </Card>
-        <div className="grid gap-4">
-          <Card>
-            <StatTile label="Unassigned" value={data.unassignedTokens.toLocaleString()} caption={data.unassignedTokens > 0 ? "not attributed to a project" : "everything is attributed"} />
-          </Card>
-          <Card>
-            <StatTile label="Active collectors" value={activeCollectors} />
-          </Card>
-        </div>
-      </div>
+      <DashboardOverview data={data} userId={session.user.id} handle={session.user.handle ?? null} range={range} />
 
       {data.bySource.length > 0 && (
         <Card>
