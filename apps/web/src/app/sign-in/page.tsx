@@ -7,7 +7,27 @@ export default async function SignInPage() {
   if (session?.user) redirect("/dashboard");
 
   return (
-    <div className="mx-auto max-w-sm">
+    <div className="mx-auto grid max-w-4xl items-center gap-10 lg:grid-cols-2">
+      <div className="hidden lg:block">
+        <h2 className="text-4xl font-semibold leading-tight tracking-tight">
+          Your usage,
+          <br />
+          <span className="text-accent">your rules.</span>
+        </h2>
+        <ul className="mt-6 space-y-4 text-sm text-foreground-muted">
+          {[
+            ["Private by default", "Nothing is public until you approve it, project by project."],
+            ["Metadata only", "Token counts and model names. Never prompts, code, or file paths."],
+            ["Identity ≠ access", "Signing in never grants access to your AI accounts or repositories."],
+          ].map(([t, b]) => (
+            <li key={t} className="flex gap-3">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs text-accent">✓</span>
+              <span><span className="font-medium text-foreground">{t}.</span> {b}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="mx-auto w-full max-w-sm">
       <h1 className="mb-2 text-3xl font-semibold tracking-tight">Sign in</h1>
       <p className="mb-6 text-sm text-foreground-muted">
         Signing in identifies you on Token Maxxer. It does not grant access to your Claude,
@@ -76,6 +96,7 @@ export default async function SignInPage() {
           )}
         </form>
       </Card>
+      </div>
     </div>
   );
 }

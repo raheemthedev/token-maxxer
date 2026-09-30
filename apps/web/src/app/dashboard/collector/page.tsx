@@ -38,6 +38,22 @@ export default async function CollectorPage() {
         </p>
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[
+          ["Claude Code", "Automatic", "Paste-once snippet, no process to run.", "green"],
+          ["Codex CLI", "CLI collector", "Reads ~/.codex session logs locally.", "accent"],
+          ["OpenCode", "Needs validation", "CLI output isn't machine-readable yet.", "amber"],
+        ].map(([name, tag, body, tone]) => (
+          <Card key={name} className="p-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium">{name}</span>
+              <Badge tone={tone as "green" | "accent" | "amber"}>{tag}</Badge>
+            </div>
+            <p className="mt-1 text-sm text-foreground-muted">{body}</p>
+          </Card>
+        ))}
+      </div>
+
       <OtelSetupGenerator />
 
       <details>

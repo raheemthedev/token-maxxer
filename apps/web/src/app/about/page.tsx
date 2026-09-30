@@ -32,6 +32,22 @@ export default function AboutPage() {
           </p>
         </Section>
 
+        <Card className="bg-accent-soft/40">
+          <h2 className="mb-3 text-lg font-semibold">A worked example</h2>
+          <div className="grid gap-x-8 gap-y-1 font-mono text-sm sm:grid-cols-2">
+            <span>fresh input</span><span className="text-right">1,000</span>
+            <span>output</span><span className="text-right">500</span>
+            <span>cache read</span><span className="text-right">40,000</span>
+            <span>cache write</span><span className="text-right">2,000</span>
+            <span className="border-t border-border-soft pt-1 font-semibold">headline total</span>
+            <span className="border-t border-border-soft pt-1 text-right font-semibold">43,500</span>
+          </div>
+          <p className="mt-3 text-sm text-foreground-muted">
+            Cache reads dominate agentic coding because the same context is re-sent on every step — so totals
+            reach hundreds of millions. That is consumption, not quality.
+          </p>
+        </Card>
+
         <Section title="Periods">
           <p>
             All boundaries are computed in UTC. &ldquo;This week&rdquo; starts Monday 00:00 UTC.

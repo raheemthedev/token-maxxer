@@ -92,12 +92,17 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           </div>
         </header>
         <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-10">{children}</main>
-        <footer className="border-t border-border-soft px-5 py-8 text-center text-xs text-foreground-muted">
-          A friendly community leaderboard, not a fraud-proof competition. See{" "}
-          <Link href="/about" className="underline underline-offset-2">
-            how counting works
-          </Link>
-          .
+        <footer className="border-t border-border-soft px-5 py-10">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-start justify-between gap-6 text-sm text-foreground-muted">
+            <div>
+              <p className="font-medium text-foreground">token<span className="text-accent">maxxer</span></p>
+              <p className="mt-1 max-w-xs text-xs">A friendly community leaderboard — not a fraud-proof competition. Evidence labels say exactly what a number is.</p>
+            </div>
+            <nav className="flex gap-6 text-xs">
+              <Link href="/about" className="hover:text-foreground">How counting works</Link>
+              <a href="https://github.com/raheemthedev/token-maxxer" target="_blank" rel="noopener noreferrer" className="hover:text-foreground">Source ↗</a>
+            </nav>
+          </div>
         </footer>
       </body>
     </html>

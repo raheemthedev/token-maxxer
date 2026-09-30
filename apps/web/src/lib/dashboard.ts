@@ -27,6 +27,8 @@ export interface DashboardData {
   publishedAt: Date | null;
   totalTokens: number;
   unassignedTokens: number;
+  bySource: { source: string; tokens: number }[];
+  buckets: { input: number; output: number; cacheRead: number; cacheWrite: number };
   projects: DashboardProject[];
   collectors: DashboardCollector[];
 }
@@ -40,6 +42,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
         projects: { where: { mergedIntoId: null }, orderBy: { createdAt: "desc" } },
         usageEvents: {
           select: {
+            source: true,
             projectId: true,
             inputTokens: true,
             outputTokens: true,
@@ -59,9 +62,11 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
   const tokensByProjectId = new Map<string, number>();
   let totalTokens = 0;
   let unassignedTokens = 0;
+  const sourceTotals = new Map<string, number>();
+  const buckets = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
 
   for (const event of user.usageEvents) {
-    const buckets: TokenBuckets = {
+    const buckets_: TokenBuckets = {
       input: event.inputTokens,
       output: event.outputTokens,
       cacheRead: event.cacheReadTokens,
@@ -69,8 +74,13 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
       reasoning: event.reasoningTokens,
       reasoningIncludedInOutput: event.reasoningIncludedInOutput,
     };
-    const total = computeHeadlineTotal(buckets);
+    const total = computeHeadlineTotal(buckets_);
     totalTokens += total;
+    sourceTotals.set(event.source, (sourceTotals.get(event.source) ?? 0) + total);
+    buckets.input += buckets_.input ?? 0;
+    buckets.output += buckets_.output ?? 0;
+    buckets.cacheRead += buckets_.cacheRead ?? 0;
+    buckets.cacheWrite += buckets_.cacheWrite ?? 0;
     if (event.projectId) {
       tokensByProjectId.set(event.projectId, (tokensByProjectId.get(event.projectId) ?? 0) + total);
     } else {
@@ -83,6 +93,8 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     publishedAt: user.publishSettings?.publishedAt ?? null,
     totalTokens,
     unassignedTokens,
+    bySource: Array.from(sourceTotals.entries()).map(([source, tokens]) => ({ source, tokens })).sort((a, b) => b.tokens - a.tokens),
+    buckets,
     projects: user.projects.map((p) => ({
       id: p.id,
       detectedNameLocal: p.detectedNameLocal,
