@@ -27,11 +27,11 @@ export function StackedBar({ segments, footer }: { segments: Segment[]; footer?:
           <div key={s.label} title={`${s.label}: ${s.value.toLocaleString()}`} style={{ width: `${(s.value / total) * 100}%`, background: s.color }} className="h-full first:rounded-l-full last:rounded-r-full" />
         ))}
       </div>
-      <ul className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-4">
+      <ul className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
         {visible.map((s) => (
           <li key={s.label} className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: s.color }} />
-            <span className="text-foreground-muted">{s.label}</span>
+            <span className="whitespace-nowrap text-foreground-muted">{s.label}</span>
             <span className="stat-number ml-auto font-medium">{((s.value / total) * 100).toFixed(total > 0 && s.value / total < 0.01 ? 1 : 0)}%</span>
           </li>
         ))}
