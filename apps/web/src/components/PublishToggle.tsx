@@ -1,27 +1,22 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 
 export function PublishToggle({ isPublic, handle }: { isPublic: boolean; handle: string | null }) {
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   async function setPublic(next: boolean) {
-    setError(null);
-    const res = await fetch("/api/publish", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ isPublic: next }),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      setError(body.error ?? "Failed to update publish status.");
-      return;
-    }
-    startTransition(() => router.refresh());
+    setError(null); setPending(true);
+    try {
+      const res = await fetch("/api/publish", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ isPublic: next }) });
+      if (!res.ok) { const body = await res.json().catch(() => ({})); throw new Error(body.error ?? "Failed to update publish status."); }
+      router.refresh();
+    } catch (e) { setError(e instanceof Error ? e.message : "Connection failed. Try again."); }
+    finally { setPending(false); }
   }
 
   return (
@@ -34,6 +29,7 @@ export function PublishToggle({ isPublic, handle }: { isPublic: boolean; handle:
             : "You're private. Nothing about you appears on the leaderboard or has a public profile until you publish."}
         </p>
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        {!isPublic && <a href="/dashboard/preview" className="mt-2 inline-block text-sm text-accent underline">Preview before publishing</a>}
         {isPublic && handle && (
           <p className="mt-2 text-sm">
             Preview:{" "}
@@ -45,6 +41,7 @@ export function PublishToggle({ isPublic, handle }: { isPublic: boolean; handle:
       </div>
       <button
         role="switch"
+        aria-label="Public leaderboard visibility"
         aria-checked={isPublic}
         onClick={() => setPublic(!isPublic)}
         disabled={pending}
@@ -53,7 +50,7 @@ export function PublishToggle({ isPublic, handle }: { isPublic: boolean; handle:
         }`}
       >
         <span
-          className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+          className={`absolute left-0 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
             isPublic ? "translate-x-6" : "translate-x-1"
           }`}
         />

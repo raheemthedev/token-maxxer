@@ -1,3 +1,4 @@
+import { formatTokens as compact } from "@/lib/formatTokens";
 import Link from "next/link";
 import { getLeaderboard } from "@/lib/leaderboard";
 import type { LeaderboardPeriod } from "@/lib/period";
@@ -16,12 +17,6 @@ const TABS: { key: LeaderboardPeriod; label: string; blurb: string }[] = [
   { key: "all_time", label: "All time", blurb: "everything published" },
 ];
 
-function compact(n: number): string {
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
-}
 
 const MEDALS = ["bg-accent text-accent-foreground", "bg-[#d9d4cc] text-foreground", "bg-[#ecc9b3] text-foreground"];
 

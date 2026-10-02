@@ -1,15 +1,19 @@
 import { redirect } from "next/navigation";
-import { auth, signIn, isGithubConfigured, isEmailConfigured } from "@/auth";
+import { auth, signIn, isGithubConfigured, isEmailConfigured, isDevEmail } from "@/auth";
+import { AuthError } from "next-auth";
+import { SubmitButton } from "@/components/SubmitButton";
 import { Card } from "@/components/ui/Card";
 
-export default async function SignInPage() {
+export default async function SignInPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const { error } = await searchParams;
   const session = await auth();
   if (session?.user) redirect("/dashboard");
 
   return (
     <div className="mx-auto grid max-w-4xl items-center gap-10 lg:grid-cols-2">
       <div className="hidden lg:block">
-        <h2 className="text-4xl font-semibold leading-tight tracking-tight">
+        <span className="eyebrow">Token Maxxer</span>
+        <h2 className="mt-3 text-5xl font-semibold leading-[1.05] tracking-tight">
           Your usage,
           <br />
           <span className="text-accent">your rules.</span>
@@ -21,23 +25,25 @@ export default async function SignInPage() {
             ["Identity ≠ access", "Signing in never grants access to your AI accounts or repositories."],
           ].map(([t, b]) => (
             <li key={t} className="flex gap-3">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs text-accent">✓</span>
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-positive-soft text-xs text-positive">✓</span>
               <span><span className="font-medium text-foreground">{t}.</span> {b}</span>
             </li>
           ))}
         </ul>
       </div>
       <div className="mx-auto w-full max-w-sm">
-      <h1 className="mb-2 text-3xl font-semibold tracking-tight">Sign in</h1>
+      <span className="eyebrow">Welcome</span>
+      <h1 className="mb-2 mt-1 text-3xl font-semibold tracking-tight">Sign in</h1>
       <p className="mb-6 text-sm text-foreground-muted">
         Signing in identifies you on Token Maxxer. It does not grant access to your Claude,
         ChatGPT, or OpenCode accounts — usage only ever arrives through a collector you explicitly
         pair afterward.
       </p>
 
-      <Card className="space-y-3">
+      <Card className="space-y-3 !p-5">
+        {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error === "OAuthAccountNotLinked" ? "This email is already linked to another sign-in method. Use the method you originally signed up with." : error === "Verification" ? "That sign-in link expired or has already been used. Request a new one below." : "Sign-in could not be completed. Please try again."}</p>}
         {!isGithubConfigured && !isEmailConfigured && (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
             No sign-in method is configured yet. Set <code>AUTH_GITHUB_ID</code>/
             <code>AUTH_GITHUB_SECRET</code> or <code>EMAIL_SERVER</code>/<code>EMAIL_FROM</code> in
             your environment — see <code>apps/web/.env.example</code>.
@@ -48,15 +54,11 @@ export default async function SignInPage() {
           <form
             action={async () => {
               "use server";
-              await signIn("github", { redirectTo: "/dashboard" });
+              try { await signIn("github", { redirectTo: "/dashboard" }); }
+              catch (e) { if (e instanceof AuthError) redirect(`/sign-in?error=${e.type}`); throw e; }
             }}
           >
-            <button
-              type="submit"
-              className="w-full rounded-xl bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-90"
-            >
-              Continue with GitHub
-            </button>
+            <SubmitButton>Continue with GitHub</SubmitButton>
           </form>
         )}
 
@@ -68,33 +70,31 @@ export default async function SignInPage() {
           </div>
         )}
 
-        <form
+        {(isEmailConfigured || isDevEmail) && <form
           action={async (formData: FormData) => {
             "use server";
-            await signIn("nodemailer", { email: formData.get("email"), redirectTo: "/dashboard" });
+            try { await signIn("nodemailer", { email: formData.get("email"), redirectTo: "/dashboard" }); }
+            catch (e) { if (e instanceof AuthError) redirect(`/sign-in?error=${e.type}`); throw e; }
           }}
           className="space-y-2"
         >
           <input
+            aria-label="Email address"
+            autoComplete="email"
             type="email"
             name="email"
             required
             placeholder="you@example.com"
-            className="w-full rounded-xl border border-border-soft bg-surface px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+            className="w-full rounded-full border border-border-soft bg-surface px-4 py-2.5 text-sm outline-none focus:border-accent"
           />
-          <button
-            type="submit"
-            className="w-full rounded-xl border border-border-soft px-4 py-2.5 text-sm font-medium transition-colors hover:bg-surface-muted"
-          >
-            Continue with email
-          </button>
+          <SubmitButton variant="light">Continue with email</SubmitButton>
           {!isEmailConfigured && (
             <p className="text-xs text-foreground-muted">
               Dev mode: no email server configured, so the sign-in link will be printed to the
               server console instead of emailed.
             </p>
           )}
-        </form>
+        </form>}
       </Card>
       </div>
     </div>

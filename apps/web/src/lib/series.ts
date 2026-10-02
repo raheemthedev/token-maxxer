@@ -26,8 +26,13 @@ export async function getDailySeries(userId: string, days: number): Promise<Seri
   const now = new Date();
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - (days - 1)));
 
+  const local = await prisma.usageEvent.findFirst({ where: { userId, source: "claude_code", OR: [
+    { connectorVersion: null }, { connectorVersion: { not: { startsWith: "otel-" } } },
+  ] }, select: { id: true } });
   const events = await prisma.usageEvent.findMany({
-    where: { userId, observedAt: { gte: start } },
+    where: { userId, observedAt: { gte: start, lte: now },
+      ...(local ? { NOT: { source: "claude_code", connectorVersion: { startsWith: "otel-" } } } : {}),
+    },
     select: {
       source: true,
       eventType: true,

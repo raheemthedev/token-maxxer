@@ -7,14 +7,17 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace apps/web",
+    "dev": "node scripts/local-dev.mjs",
     "build": "npm run build --workspace apps/web",
     "start": "npm run start --workspace apps/web",
     "lint": "npm run lint --workspace apps/web",
     "db:generate": "npm run db:generate --workspace apps/web",
     "db:push": "npm run db:push --workspace apps/web",
     "db:seed": "npm run db:seed --workspace apps/web",
-    "collector": "npm run start --workspace @token-maxxer/collector --"
+    "collector": "npm run start --workspace @token-maxxer/collector --",
+    "collector:build": "node scripts/build-collector.mjs",
+    "test": "node scripts/test.mjs",
+    "check": "npm run lint && npm run typecheck --workspace @token-maxxer/collector && npm test && npm run build"
   },
   "engines": {
     "node": ">=20"
@@ -23,6 +26,15 @@
     "prisma@7.10.0": true,
     "@prisma/engines@7.10.0": true,
     "esbuild@0.28.2": true,
-    "better-sqlite3@12.11.1": true
+    "better-sqlite3@12.11.1": true,
+    "@embedded-postgres/darwin-arm64@18.4.0-beta.17": true,
+    "@embedded-postgres/linux-x64@18.4.0-beta.17": true,
+    "@embedded-postgres/darwin-x64@18.4.0-beta.17": true,
+    "@embedded-postgres/linux-arm64@18.4.0-beta.17": true,
+    "@embedded-postgres/windows-x64@18.4.0-beta.17": true
+  },
+  "devDependencies": {
+    "embedded-postgres": "^18.4.0-beta.17",
+    "esbuild": "^0.28.2"
   }
 }

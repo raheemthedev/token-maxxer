@@ -1,3 +1,4 @@
+import { formatTokens as compact } from "@/lib/formatTokens";
 import { ImageResponse } from "next/og";
 import { getPublicProfile } from "@/lib/profile";
 
@@ -5,12 +6,6 @@ export const alt = "Token Maxxer profile";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-function compact(n: number): string {
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
-}
 
 export default async function Image({ params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params;

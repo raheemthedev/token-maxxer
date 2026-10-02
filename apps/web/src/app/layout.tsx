@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
-import { auth, signOut, isGithubConfigured, isEmailConfigured } from "@/auth";
+import { auth, signOut, isGithubConfigured, isEmailConfigured, isDevEmail } from "@/auth";
 import { Badge } from "@/components/ui/Badge";
 import { NavLinks } from "@/components/NavLinks";
 
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const session = await auth();
-  const authConfigured = isGithubConfigured || isEmailConfigured;
+  const authConfigured = isGithubConfigured || isEmailConfigured || isDevEmail;
 
   return (
     <html
@@ -39,14 +39,14 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               </span>
               token<span className="text-accent">maxxer</span>
             </Link>
-            <nav className="flex items-center gap-1 text-sm">
+            <nav className="flex min-w-0 flex-wrap items-center gap-1 text-sm">
               <NavLinks
                 links={[
                   { href: "/", label: "Leaderboard" },
                   ...(session?.user
                     ? [
                         { href: "/dashboard", label: "Dashboard" },
-                        ...(session.user.handle ? [{ href: `/u/${session.user.handle}`, label: "My profile" }] : []),
+                        ...(session.user.handle ? [{ href: "/dashboard/preview", label: "My profile" }] : []),
                       ]
                     : []),
                 ]}
@@ -83,7 +83,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             </nav>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-10">{children}</main>
+        <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-10">
+          {process.env.NODE_ENV === "development" && process.env.LOCAL_USAGE_PREVIEW === "true" && <p className="mb-6 rounded-xl bg-accent-soft px-4 py-3 text-sm">Local preview · Real usage detected on this Mac · Live-site data is separate.</p>}
+          {children}
+        </main>
         <footer className="border-t border-border-soft px-5 py-10">
           <div className="mx-auto flex max-w-6xl flex-wrap items-start justify-between gap-6 text-sm text-foreground-muted">
             <div>

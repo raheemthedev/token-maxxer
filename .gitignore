@@ -5,3 +5,7 @@ dist/
 .vercel
 .claude/scheduled_tasks.lock
 .env*
+
+.local/
+apps/web/public/collector.cjs
+apps/web/public/collector.cjs.sha256

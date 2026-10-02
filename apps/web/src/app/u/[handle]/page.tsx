@@ -1,3 +1,4 @@
+import { formatTokens as compact } from "@/lib/formatTokens";
 import { cache } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -20,12 +21,6 @@ const SOURCE_LABELS: Record<string, string> = {
   synthetic: "Demo",
 };
 
-function compact(n: number): string {
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
-}
 
 const loadProfile = cache(getPublicProfile);
 
@@ -92,7 +87,7 @@ export default async function ProfilePage({ params, searchParams }: { params: Pr
                 {compact(profile.totalTokens)}
                 {profile.hasUnknownCategories && <span className="ml-1 text-2xl text-accent">*</span>}
               </div>
-              <p className="stat-number mt-2 text-sm text-foreground-muted">{profile.totalTokens.toLocaleString()} headline total</p>
+              <p className="stat-number mt-2 text-sm text-foreground-muted">Tokens across recorded history</p>
 
               <div className="mt-6 flex flex-wrap gap-3">
                 <CopyLinkButton />

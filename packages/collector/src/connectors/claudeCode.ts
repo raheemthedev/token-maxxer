@@ -1,12 +1,13 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, createReadStream, lstatSync } from "node:fs";
+import { createInterface } from "node:readline";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import type { NormalizedUsageEvent } from "@token-maxxer/shared";
 import { detectProject } from "../project.js";
 import type { Connector, ConnectorStatus } from "./types.js";
 
-const CONNECTOR_VERSION = "0.1.0";
-const PROJECTS_DIR = join(homedir(), ".claude", "projects");
+const CONNECTOR_VERSION = "0.2.0";
+const projectsDir = () => join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"), "projects");
 
 /**
  * Reads Claude Code's local session transcripts (~/.claude/projects/**\/*.jsonl). Each line is a
@@ -19,7 +20,7 @@ export const claudeCodeConnector: Connector = {
   displayName: "Claude Code",
 
   async detect(): Promise<ConnectorStatus> {
-    if (!existsSync(PROJECTS_DIR)) {
+    if (!existsSync(projectsDir())) {
       return {
         source: "claude_code",
         displayName: "Claude Code",
@@ -51,16 +52,14 @@ export const claudeCodeConnector: Connector = {
   async collect(projectSalt: string): Promise<NormalizedUsageEvent[]> {
     const events: NormalizedUsageEvent[] = [];
     for (const filePath of listTranscriptFiles()) {
-      let raw: string;
       try {
-        raw = readFileSync(filePath, "utf8");
+        for await (const line of createInterface({ input: createReadStream(filePath, "utf8"), crlfDelay: Infinity })) {
+          if (!line.includes('"usage"')) continue;
+          const event = parseTranscriptLine(line, projectSalt);
+          if (event) events.push(event);
+        }
       } catch {
-        continue; // file may have been rotated/removed mid-scan; skip, not fatal
-      }
-      for (const line of raw.split("\n")) {
-        if (!line.trim()) continue;
-        const event = parseTranscriptLine(line, projectSalt);
-        if (event) events.push(event);
+        throw new Error("A Claude Code session could not be read. Collection will retry without discarding past uploads.");
       }
     }
     return events;
@@ -68,15 +67,19 @@ export const claudeCodeConnector: Connector = {
 };
 
 function listTranscriptFiles(): string[] {
-  if (!existsSync(PROJECTS_DIR)) return [];
+  if (!existsSync(projectsDir())) return [];
   const files: string[] = [];
-  for (const projectDir of safeReaddir(PROJECTS_DIR)) {
-    const fullDir = join(PROJECTS_DIR, projectDir);
-    if (!statSync(fullDir).isDirectory()) continue;
-    for (const entry of safeReaddir(fullDir)) {
-      if (entry.endsWith(".jsonl")) files.push(join(fullDir, entry));
+  const walk = (dir: string) => {
+    for (const entry of safeReaddir(dir)) {
+      const path = join(dir, entry);
+      try {
+        const stat = lstatSync(path);
+        if (stat.isDirectory()) walk(path);
+        else if (stat.isFile() && entry.endsWith(".jsonl")) files.push(path);
+      } catch { /* A session may disappear while scanning. */ }
     }
-  }
+  };
+  walk(projectsDir());
   return files;
 }
 
@@ -107,7 +110,7 @@ interface TranscriptLine {
   };
 }
 
-function parseTranscriptLine(line: string, projectSalt: string): NormalizedUsageEvent | null {
+export function parseTranscriptLine(line: string, projectSalt: string): NormalizedUsageEvent | null {
   let parsed: TranscriptLine;
   try {
     parsed = JSON.parse(line);
@@ -116,12 +119,13 @@ function parseTranscriptLine(line: string, projectSalt: string): NormalizedUsage
   }
 
   // Usage numbers only appear on assistant turns.
-  if (parsed.type !== "assistant") return null;
+  if (!parsed || typeof parsed !== "object" || parsed.type !== "assistant") return null;
   const usage = parsed.message?.usage;
-  if (!usage) return null;
+  if (!usage || typeof usage !== "object") return null;
 
   const sourceEventId = parsed.requestId ?? parsed.uuid;
-  if (!sourceEventId) return null;
+  if (!sourceEventId || !parsed.timestamp || !Number.isFinite(new Date(parsed.timestamp).getTime())) return null;
+  if ([usage.input_tokens, usage.output_tokens, usage.cache_creation_input_tokens, usage.cache_read_input_tokens].some(v => v != null && (typeof v !== "number" || !Number.isSafeInteger(v) || v < 0))) return null;
 
   const project = parsed.cwd ? detectProject(parsed.cwd, projectSalt) : null;
 

@@ -1,15 +1,10 @@
+import { formatTokens as compact } from "@/lib/formatTokens";
 import Link from "next/link";
 import type { DashboardData } from "@/lib/dashboard";
 import { getDailySeries } from "@/lib/series";
 import { ActivityCard, type Range } from "@/components/ActivityCard";
 import { BUCKET_COLORS, StackedBar } from "@/components/ui/Bars";
 
-function compact(n: number): string {
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
-}
 
 export async function DashboardOverview({
   data,
@@ -26,21 +21,22 @@ export async function DashboardOverview({
   const activeCollectors = data.collectors.filter((c) => c.status === "active").length;
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.1fr_1fr]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_1fr]">
       <div className="card relative overflow-hidden p-6 sm:p-8">
         <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-accent-soft blur-3xl" />
         <div className="relative">
-          <div className="eyebrow">Tokens processed · all time</div>
+          <div className="eyebrow">All-time usage</div>
           <div className="stat-number mt-3 text-5xl font-semibold leading-none sm:text-7xl">{compact(data.totalTokens)}</div>
           <p className="stat-number mt-2 text-sm text-foreground-muted">
-            {data.totalTokens.toLocaleString()} headline total
+            Tokens across your recorded history
             {data.bySource.length > 0 && ` · ${data.bySource.length} tool${data.bySource.length === 1 ? "" : "s"}`}
           </p>
 
+          {data.hasUnknownCategories && <p className="mt-2 text-xs text-foreground-muted">Some token categories aren’t reported. Totals include available counts.</p>}
           <div className="mt-6 flex flex-wrap gap-3">
             {handle && (
-              <Link href={`/u/${handle}`} className="pill pill-dark">
-                <span aria-hidden>↗</span> View public profile
+              <Link href={data.isPublic ? `/u/${handle}` : "/dashboard/preview"} className="pill pill-dark">
+                <span aria-hidden>↗</span> {data.isPublic ? "View public profile" : "Preview profile"}
               </Link>
             )}
             <Link href="/dashboard/collector" className="pill pill-light">

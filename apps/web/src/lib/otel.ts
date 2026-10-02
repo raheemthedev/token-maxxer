@@ -1,7 +1,7 @@
 import { hashProjectFingerprint } from "@token-maxxer/shared";
 import type { IngestableEvent } from "./ingest";
 
-const CONNECTOR_VERSION = "otel-receiver@0.2.0";
+const CONNECTOR_VERSION = "otel-receiver@0.3.0";
 
 type NumericBucketKey = "input" | "output" | "cacheRead" | "cacheWrite" | "reasoning";
 
@@ -28,10 +28,10 @@ interface OtlpAttribute {
 }
 
 function attrString(attributes: OtlpAttribute[] | undefined, key: string): string | undefined {
-  const attr = attributes?.find((a) => a.key === key);
+  const attr = Array.isArray(attributes) ? attributes.find((a) => a && typeof a === "object" && a.key === key) : undefined;
   const v = attr?.value;
   if (!v) return undefined;
-  if (v.stringValue !== undefined) return v.stringValue;
+  if (typeof v.stringValue === "string") return v.stringValue;
   if (v.intValue !== undefined) return String(v.intValue);
   if (v.doubleValue !== undefined) return String(v.doubleValue);
   if (v.boolValue !== undefined) return String(v.boolValue);
@@ -65,6 +65,7 @@ function nanosToDate(nanos: string | undefined): Date {
 interface GroupedEvent {
   model: string | null;
   observedAt: Date;
+  periodStart: string | null;
   eventType: "incremental" | "cumulative_snapshot";
   sourceEventId: string;
   projectFingerprintHash: string | null;
@@ -100,19 +101,26 @@ export function parseOtlpMetrics(payload: unknown, projectSalt: string): OtlpPar
   }
 
   for (const rm of resourceMetrics) {
+    if (!rm || typeof rm !== "object") continue;
     const resourceAttrs = (rm as { resource?: { attributes?: OtlpAttribute[] } })?.resource?.attributes;
     const scopeMetrics = (rm as { scopeMetrics?: unknown[] })?.scopeMetrics ?? [];
 
+    if (!Array.isArray(scopeMetrics)) continue;
     for (const sm of scopeMetrics) {
+      if (!sm || typeof sm !== "object") continue;
       const metrics = (sm as { metrics?: unknown[] })?.metrics ?? [];
+      if (!Array.isArray(metrics)) continue;
       for (const metric of metrics) {
+        if (!metric || typeof metric !== "object") continue;
         const m = metric as { name?: string; sum?: { dataPoints?: unknown[]; aggregationTemporality?: number } };
         if (m.name) metricCounts.set(m.name, (metricCounts.get(m.name) ?? 0) + (m.sum?.dataPoints?.length ?? 0));
-        if (m.name !== "claude_code.token.usage" || !m.sum) continue;
+        if (m.name !== "claude_code.token.usage" || !m.sum || !Array.isArray(m.sum.dataPoints)) continue;
+        if (m.sum.aggregationTemporality !== 1 && m.sum.aggregationTemporality !== 2) { skippedBadValue += m.sum.dataPoints.length; continue; }
 
         const isCumulative = m.sum.aggregationTemporality === AGG_TEMPORALITY_CUMULATIVE;
 
         for (const dp of m.sum.dataPoints ?? []) {
+          if (!dp || typeof dp !== "object") { skippedBadValue++; continue; }
           const point = dp as {
             attributes?: OtlpAttribute[];
             startTimeUnixNano?: string;
@@ -133,7 +141,7 @@ export function parseOtlpMetrics(payload: unknown, projectSalt: string): OtlpPar
             continue;
           }
 
-          const model = attrString(point.attributes, "model") ?? null;
+          const model = lookup(point.attributes, resourceAttrs, "model") ?? null;
           // session.id is the natural counter-reset boundary; without it, a cumulative series' own
           // start time identifies the process lifetime it belongs to.
           const sessionId = lookup(point.attributes, resourceAttrs, "session.id");
@@ -145,7 +153,9 @@ export function parseOtlpMetrics(payload: unknown, projectSalt: string): OtlpPar
             owner && repo ? hashProjectFingerprint(projectSalt, `${owner}/${repo}`) : null;
           const projectHint = owner && repo ? `${owner}/${repo}` : null;
 
+          if (!point.timeUnixNano || !/^\d+$/.test(String(point.timeUnixNano))) { skippedBadValue++; continue; }
           const observedAt = nanosToDate(point.timeUnixNano);
+          if (observedAt.getTime() > Date.now() + 5 * 60 * 1000) { skippedBadValue++; continue; }
           const projectKey = projectFingerprintHash ? projectFingerprintHash.slice(0, 12) : "none";
           const key = isCumulative
             ? `cumulative:${epoch}:${model}:${projectKey}`
@@ -156,6 +166,7 @@ export function parseOtlpMetrics(payload: unknown, projectSalt: string): OtlpPar
             group = {
               model,
               observedAt,
+              periodStart: point.startTimeUnixNano ? nanosToDate(point.startTimeUnixNano).toISOString() : null,
               eventType: isCumulative ? "cumulative_snapshot" : "incremental",
               sourceEventId: `otel:${key}`,
               projectFingerprintHash,
@@ -196,6 +207,8 @@ export function parseOtlpMetrics(payload: unknown, projectSalt: string): OtlpPar
       sourceEventId: g.sourceEventId,
       eventType: g.eventType,
       observedAt: g.observedAt.toISOString(),
+      periodStart: g.periodStart,
+      periodEnd: null,
       projectFingerprintHash: g.projectFingerprintHash,
       projectDetectionMethod: g.projectFingerprintHash ? "session_metadata" : null,
       projectHintRedacted: g.projectHint,

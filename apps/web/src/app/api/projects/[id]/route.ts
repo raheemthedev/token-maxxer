@@ -21,46 +21,27 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
-  const project = await prisma.project.findUnique({ where: { id } });
-  if (!project || project.userId !== session.user.id) {
-    return NextResponse.json({ error: "Project not found." }, { status: 404 });
-  }
-
   const parsed = patchSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request body.", details: parsed.error.flatten() }, { status: 400 });
   }
   const patch = parsed.data;
 
-  // A project can't go public without a user-approved display name — the raw detected folder
-  // name must never be the thing that gets published.
-  const nextDisplayName = patch.displayName !== undefined ? patch.displayName : project.displayName;
-  const nextVisibility = patch.visibility ?? project.visibility;
-  if (nextVisibility === "public" && !nextDisplayName) {
-    return NextResponse.json(
-      { error: "Set a display name before making a project public." },
-      { status: 400 },
-    );
-  }
-
-  // Only accept an http(s) link and validate it renders safely as a plain URL.
-  if (patch.linkUrl && !/^https?:\/\//i.test(patch.linkUrl)) {
-    return NextResponse.json({ error: "Links must start with http:// or https://." }, { status: 400 });
-  }
-
-  const updated = await prisma.project.update({
-    where: { id },
-    data: {
-      displayName: patch.displayName === undefined ? undefined : patch.displayName,
-      visibility: patch.visibility,
-      hidden: patch.hidden,
-      linkUrl: patch.linkUrl === undefined ? undefined : patch.linkUrl,
-      linkLabel: patch.linkLabel === undefined ? undefined : patch.linkLabel,
-      description: patch.description === undefined ? undefined : patch.description,
-    },
+  const userId = session.user.id;
+  return prisma.$transaction(async tx => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
+    const project = await tx.project.findUnique({ where: { id } });
+    if (!project || project.userId !== userId) return NextResponse.json({ error: "Project not found." }, { status: 404 });
+    const nextDisplayName = patch.displayName !== undefined ? patch.displayName : project.displayName;
+    if ((patch.visibility ?? project.visibility) === "public" && !nextDisplayName) {
+      return NextResponse.json({ error: "Set a display name before making a project public." }, { status: 400 });
+    }
+    if (patch.linkUrl && !/^https?:\/\//i.test(patch.linkUrl)) {
+      return NextResponse.json({ error: "Links must start with http:// or https://." }, { status: 400 });
+    }
+    const updated = await tx.project.update({ where: { id }, data: patch });
+    return NextResponse.json({ project: toPrivateProjectView(updated) });
   });
-
-  return NextResponse.json({ project: toPrivateProjectView(updated) });
 }
 
 /**
@@ -76,18 +57,16 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
-  const project = await prisma.project.findUnique({ where: { id } });
-  if (!project || project.userId !== session.user.id) {
-    return NextResponse.json({ error: "Project not found." }, { status: 404 });
-  }
-
-  const [events] = await prisma.$transaction([
-    prisma.usageEvent.deleteMany({ where: { projectId: id, userId: session.user.id } }),
-    prisma.project.deleteMany({ where: { mergedIntoId: id, userId: session.user.id } }),
-    prisma.project.delete({ where: { id } }),
-  ]);
-
-  return NextResponse.json({ ok: true, deletedUsageEvents: events.count });
+  const userId = session.user.id;
+  return prisma.$transaction(async tx => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
+    const project = await tx.project.findUnique({ where: { id } });
+    if (!project || project.userId !== userId) return NextResponse.json({ error: "Project not found." }, { status: 404 });
+    const events = await tx.usageEvent.deleteMany({ where: { projectId: id, userId } });
+    await tx.project.deleteMany({ where: { mergedIntoId: id, userId } });
+    await tx.project.delete({ where: { id } });
+    return NextResponse.json({ ok: true, deletedUsageEvents: events.count });
+  });
 }
 
 function toPrivateProjectView(project: {

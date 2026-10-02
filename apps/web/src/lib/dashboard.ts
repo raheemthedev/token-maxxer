@@ -1,4 +1,5 @@
-import { computeHeadlineTotal, type TokenBuckets } from "@token-maxxer/shared";
+import { canonicalUsage } from "./canonicalUsage";
+import { computeHeadlineTotal, hasUnknownCategories, type TokenBuckets } from "@token-maxxer/shared";
 import { prisma } from "./prisma";
 
 export interface DashboardProject {
@@ -27,6 +28,7 @@ export interface DashboardData {
   publishedAt: Date | null;
   totalTokens: number;
   unassignedTokens: number;
+  hasUnknownCategories: boolean;
   bySource: { source: string; tokens: number }[];
   buckets: { input: number; output: number; cacheRead: number; cacheWrite: number };
   projects: DashboardProject[];
@@ -43,6 +45,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
         usageEvents: {
           select: {
             source: true,
+          connectorVersion: true,
             projectId: true,
             inputTokens: true,
             outputTokens: true,
@@ -61,11 +64,12 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
 
   const tokensByProjectId = new Map<string, number>();
   let totalTokens = 0;
+  let unknown = false;
   let unassignedTokens = 0;
   const sourceTotals = new Map<string, number>();
   const buckets = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
 
-  for (const event of user.usageEvents) {
+  for (const event of canonicalUsage(user.usageEvents)) {
     const buckets_: TokenBuckets = {
       input: event.inputTokens,
       output: event.outputTokens,
@@ -75,6 +79,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
       reasoningIncludedInOutput: event.reasoningIncludedInOutput,
     };
     const total = computeHeadlineTotal(buckets_);
+    if (hasUnknownCategories(buckets_)) unknown = true;
     totalTokens += total;
     sourceTotals.set(event.source, (sourceTotals.get(event.source) ?? 0) + total);
     buckets.input += buckets_.input ?? 0;
@@ -93,6 +98,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     publishedAt: user.publishSettings?.publishedAt ?? null,
     totalTokens,
     unassignedTokens,
+    hasUnknownCategories: unknown,
     bySource: Array.from(sourceTotals.entries()).map(([source, tokens]) => ({ source, tokens })).sort((a, b) => b.tokens - a.tokens),
     buckets,
     projects: user.projects.map((p) => ({

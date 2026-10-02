@@ -35,6 +35,7 @@ model User {
   collectors      Collector[]
   projects        Project[]
   usageEvents     UsageEvent[]
+  usageCounters   UsageCounter[]
   publishSettings PublishSettings?
 }
 
@@ -92,13 +93,34 @@ model Collector {
   // Content-free description of the most recent upload (e.g. "saw claude_code.token.usage×4 → 1
   // usage event(s)"). Shown to the owning user so a misconfigured exporter is debuggable.
   lastIngestSummary String?
+  connectorStatuses Json?
+  kind            String    @default("cli")
   createdAt       DateTime  @default(now())
   revokedAt       DateTime?
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   usageEvents UsageEvent[]
+  usageCounters UsageCounter[]
 
   @@index([userId])
+}
+
+// Checkpoints for cumulative OTel exports. UsageEvent stores only the initial baseline and
+// subsequent deltas, so moving a counter's observation time never moves past usage into today.
+model UsageCounter {
+  id String @id @default(cuid())
+  userId String
+  collectorId String?
+  sourceEventId String
+  observedAt DateTime
+  inputTokens Int?
+  outputTokens Int?
+  cacheReadTokens Int?
+  cacheWriteTokens Int?
+  reasoningTokens Int?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  collector Collector? @relation(fields: [collectorId], references: [id], onDelete: SetNull)
+  @@unique([userId, sourceEventId])
 }
 
 // Short-lived one-time code shown in the dashboard and typed into the collector to pair it.

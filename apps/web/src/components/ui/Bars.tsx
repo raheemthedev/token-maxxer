@@ -1,3 +1,4 @@
+import { formatTokens } from "@/lib/formatTokens";
 import type { ReactNode } from "react";
 
 /** Horizontal share bar: `value` relative to `max` (e.g. a row's tokens vs the leader's). */
@@ -24,7 +25,7 @@ export function StackedBar({ segments, footer }: { segments: Segment[]; footer?:
     <div>
       <div className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full">
         {visible.map((s) => (
-          <div key={s.label} title={`${s.label}: ${s.value.toLocaleString()}`} style={{ width: `${(s.value / total) * 100}%`, background: s.color }} className="h-full first:rounded-l-full last:rounded-r-full" />
+          <div key={s.label} title={`${s.label}: ${formatTokens(s.value)}`} style={{ width: `${(s.value / total) * 100}%`, background: s.color }} className="h-full first:rounded-l-full last:rounded-r-full" />
         ))}
       </div>
       <ul className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">

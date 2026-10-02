@@ -4,7 +4,7 @@ export interface ConnectorStatus {
   source: UsageSource;
   displayName: string;
   detected: boolean;
-  status: "ok" | "needs_setup" | "unsupported";
+  status: "ok" | "needs_setup" | "unsupported" | "error";
   /** Human-readable, content-free status message shown in the collector UI/diagnostics. */
   message: string;
   setupSteps?: string[];

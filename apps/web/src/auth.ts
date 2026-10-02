@@ -9,6 +9,7 @@ export const isGithubConfigured = Boolean(
   process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET,
 );
 export const isEmailConfigured = Boolean(process.env.EMAIL_SERVER && process.env.EMAIL_FROM);
+export const isDevEmail = process.env.NODE_ENV === "development" && !isEmailConfigured;
 
 const providers = [];
 
@@ -24,10 +25,9 @@ if (isGithubConfigured) {
   );
 }
 
-// Email sign-in is always registered so the UI can render it, but when EMAIL_SERVER isn't
-// configured we swap in a dev-only transport that logs the magic link to the server console
-// instead of silently failing to send mail.
-providers.push(
+// Production offers email only with a configured SMTP transport. Development alone can
+// print a magic link locally so new contributors can test sign-in without a mail account.
+if (isEmailConfigured || isDevEmail) providers.push(
   Nodemailer({
     // Auth.js validates `server` eagerly even though our sendVerificationRequest below never
     // uses it in dev mode — a placeholder keeps that validation happy without pretending to be
@@ -58,7 +58,8 @@ providers.push(
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "database" },
-  secret: process.env.AUTH_SECRET || "dev-only-insecure-secret-do-not-use-in-production",
+  trustHost: process.env.NODE_ENV === "development" || process.env.VERCEL === "1" || process.env.AUTH_TRUST_HOST === "true",
+  secret: process.env.AUTH_SECRET || (process.env.NODE_ENV === "development" ? "dev-only-insecure-secret-do-not-use-in-production" : undefined),
   providers,
   pages: {
     signIn: "/sign-in",

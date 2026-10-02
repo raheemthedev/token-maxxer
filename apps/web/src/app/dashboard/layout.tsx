@@ -24,13 +24,13 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const items: SideItem[] = [
     { href: "/dashboard", label: "Overview", exact: true, icon: icon("M4 13h6V4H4zM14 20h6v-9h-6zM14 4v4h6V4zM4 20h6v-3H4z") },
     { href: "/dashboard/collector", label: "Connect tools", icon: icon("M9 7V3M15 7V3M6 7h12v4a6 6 0 0 1-12 0zM12 17v4") },
-    ...(session?.user?.handle ? [{ href: `/u/${session.user.handle}`, label: "Public profile", icon: icon("M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0") }] : []),
+    ...(session?.user?.handle ? [{ href: "/dashboard/preview", label: "Profile preview", icon: icon("M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0") }] : []),
     { href: "/", label: "Leaderboard", exact: true, icon: icon("M6 20V10M12 20V4M18 20v-7") },
   ];
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[230px_1fr]">
-      <aside className="lg:sticky lg:top-24 lg:self-start">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[230px_minmax(0,1fr)]">
+      <aside className="min-w-0 lg:sticky lg:top-24 lg:self-start">
         <div className="rounded-[1.75rem] bg-surface-muted/70 p-3 lg:min-h-[420px] lg:p-4">
           <SideNav items={items} />
           {isPublic !== null && (

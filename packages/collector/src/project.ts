@@ -16,7 +16,8 @@ export interface DetectedProject {
  * handled by the caller before this is ever reached — this is the fallback chain.
  */
 export function detectProject(cwd: string, projectSalt: string): DetectedProject {
-  const gitRoot = tryGitRoot(cwd);
+  const gitRoot = gitRoots.has(cwd) ? gitRoots.get(cwd)! : tryGitRoot(cwd);
+  gitRoots.set(cwd, gitRoot);
   if (gitRoot) {
     return {
       fingerprintHash: hashProjectFingerprint(projectSalt, gitRoot),
@@ -31,11 +32,16 @@ export function detectProject(cwd: string, projectSalt: string): DetectedProject
   };
 }
 
+// Cleared once per scan: thousands of messages in one folder need just one git invocation.
+const gitRoots = new Map<string, string | null>();
+export function resetProjectCache() { gitRoots.clear(); }
+
 function tryGitRoot(cwd: string): string | null {
   try {
     const out = execFileSync("git", ["-C", cwd, "rev-parse", "--show-toplevel"], {
       stdio: ["ignore", "pipe", "ignore"],
       encoding: "utf8",
+      timeout: 3000,
     }).trim();
     return out || null;
   } catch {

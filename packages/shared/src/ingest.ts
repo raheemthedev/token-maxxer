@@ -4,6 +4,7 @@ import type { NormalizedUsageEvent } from "./usage";
 export interface IngestBatchRequest {
   collectorName: string;
   events: NormalizedIngestEvent[];
+  connectorStatuses?: { source: string; displayName: string; status: string; message: string }[];
 }
 
 /**
@@ -24,10 +25,12 @@ export interface IngestBatchResponse {
   accepted: number;
   duplicates: number;
   unassignedProjects: number;
+  skippedSources?: string[];
 }
 
 export interface PairingExchangeRequest {
   pairingCode: string;
+  replace?: boolean;
   collectorName: string;
 }
 

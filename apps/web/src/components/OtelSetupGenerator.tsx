@@ -1,87 +1,31 @@
 "use client";
-
 import { useState } from "react";
-import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
-
+import { Card } from "./ui/Card";
 export function OtelSetupGenerator() {
-  const [snippet, setSnippet] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [command, setCommand] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false), [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-
   async function generate() {
-    setLoading(true);
-    setError(null);
-    const res = await fetch("/api/collector/otel-setup", { method: "POST" });
-    setLoading(false);
-    if (!res.ok) {
-      setError("Failed to generate a setup snippet. Try again.");
-      return;
-    }
-    const { token, metricsEndpoint } = await res.json();
-    setSnippet(
-      [
-        "export CLAUDE_CODE_ENABLE_TELEMETRY=1",
-        "export OTEL_METRICS_EXPORTER=otlp",
-        "export OTEL_EXPORTER_OTLP_PROTOCOL=http/json",
-        `export OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=${metricsEndpoint}`,
-        `export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer ${token}"`,
-        "export OTEL_METRIC_EXPORT_INTERVAL=60000",
-        "export OTEL_METRICS_INCLUDE_REPOSITORY=true",
-      ].join("\n"),
-    );
-  }
-
-  async function copy() {
-    if (!snippet) return;
+    setLoading(true); setError(null);
     try {
-      await navigator.clipboard.writeText(snippet);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard API can be unavailable (e.g. insecure context) — the snippet is still selectable.
-    }
+      const res = await fetch("/api/collector/otel-setup", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not generate telemetry setup.");
+      const env = { CLAUDE_CODE_ENABLE_TELEMETRY: "1", OTEL_METRICS_EXPORTER: "otlp",
+        OTEL_LOGS_EXPORTER: "none", OTEL_TRACES_EXPORTER: "none", OTEL_EXPORTER_OTLP_METRICS_PROTOCOL: "http/json",
+        OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: data.metricsEndpoint, OTEL_EXPORTER_OTLP_METRICS_HEADERS: `Authorization=Bearer ${data.token}`,
+        OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: "delta", OTEL_METRIC_EXPORT_INTERVAL: "60000", OTEL_METRICS_INCLUDE_REPOSITORY: "true" };
+      const script = `const fs=require("node:fs"),p=require("node:path"),os=require("node:os");const dir=p.join(os.homedir(),".claude"),file=p.join(dir,"settings.json");fs.mkdirSync(dir,{recursive:true});let settings={};if(fs.existsSync(file)){settings=JSON.parse(fs.readFileSync(file,"utf8"));fs.copyFileSync(file,file+".token-maxxer-backup-"+Date.now());}settings.env={...settings.env,...${JSON.stringify(env)}};fs.writeFileSync(file,JSON.stringify(settings,null,2)+"\\n",{mode:384});console.log("Token Maxxer configured. Start a new Claude Code session to begin tracking.");`;
+      setCommand(`node -e '${script.replaceAll("'", "'\\''")}'`);
+    } catch (e) { setError(e instanceof Error ? e.message : "Connection failed. Try again."); }
+    finally { setLoading(false); }
   }
-
-  return (
-    <Card>
-      <div className="mb-1 flex items-center gap-2">
-        <h2 className="font-medium">Automatic (recommended)</h2>
-        <Badge tone="accent">Set once, works forever</Badge>
-      </div>
-      <p className="mb-4 text-sm text-foreground-muted">
-        Paste this into your shell profile (<code>~/.zshrc</code>, <code>~/.bashrc</code>) once.
-        Claude Code then reports usage automatically on every session — no process to keep
-        running, nothing to remember to launch.
-      </p>
-      {snippet ? (
-        <div className="space-y-2">
-          <pre className="overflow-x-auto rounded-xl bg-surface-muted p-3.5 font-mono text-xs leading-relaxed">
-            {snippet}
-          </pre>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={copy}
-              className="rounded-full border border-border-soft px-3.5 py-1.5 text-sm font-medium transition-colors hover:bg-surface-muted"
-            >
-              {copied ? "Copied" : "Copy"}
-            </button>
-            <p className="text-xs text-foreground-muted">
-              This token won&apos;t be shown again — regenerate a new one if you lose it.
-            </p>
-          </div>
-        </div>
-      ) : (
-        <button
-          onClick={generate}
-          disabled={loading}
-          className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-foreground shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
-        >
-          {loading ? "Generating…" : "Generate setup snippet"}
-        </button>
-      )}
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-    </Card>
-  );
+  async function copy() { try { await navigator.clipboard.writeText(command!); setCopied(true); } catch { setError("Select and copy the command above."); } }
+  return <Card><h2 className="font-medium">Claude Code telemetry</h2>
+    <p className="my-3 text-sm text-foreground-muted">For Claude Code only. Run the command below in a macOS or Linux terminal to add usage-only telemetry to your Claude settings, then start a new session. Existing settings are preserved and backed up. This tracks new usage without importing history.</p>
+    <p className="mb-4 text-xs text-foreground-muted">Use one collection method for Claude Code. The recommended local collector also handles Codex and OpenCode.</p>
+    {command ? <div><pre className="overflow-x-auto rounded-2xl bg-ink p-4 font-mono text-xs text-white/90">{command}</pre><button onClick={copy} className="pill pill-light mt-3">{copied ? "Copied" : "Copy command"}</button><p className="mt-2 text-xs text-foreground-muted">This contains a private token. Keep it on your own machine.</p></div>
+      : <button onClick={generate} disabled={loading} className="pill pill-light disabled:opacity-50">{loading ? "Generating…" : "Generate telemetry setup"}</button>}
+    {error && <p role="alert" className="mt-3 text-sm text-red-600">{error}</p>}
+  </Card>;
 }

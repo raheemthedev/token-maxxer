@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from "n
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-const CONFIG_DIR = join(homedir(), ".token-maxxer");
+export const CONFIG_DIR = process.env.TOKEN_MAXXER_HOME || join(homedir(), ".token-maxxer");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 
 export interface CollectorConfig {
@@ -11,6 +11,7 @@ export interface CollectorConfig {
   collectorName: string;
   /** Long-lived ingestion token. Stored locally with 0600 permissions; never logged. */
   token: string;
+  sources?: string[];
   /** Per-user hashing pepper handed back at pairing time. Local-only, never re-uploaded. */
   projectSalt: string;
   pausedAt: string | null;
@@ -31,7 +32,7 @@ export function loadConfig(): CollectorConfig {
 
 export function saveConfig(config: CollectorConfig): void {
   if (!existsSync(CONFIG_DIR)) {
-    mkdirSync(CONFIG_DIR, { recursive: true });
+    mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
   }
   writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), "utf8");
   try {

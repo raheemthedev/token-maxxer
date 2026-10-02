@@ -35,17 +35,9 @@ export async function POST(request: Request) {
 
   const { events, summary } = parseOtlpMetrics(payload, collector.projectSalt);
 
-  await prisma.collector.update({
-    where: { id: collector.id },
-    data: { lastSeenAt: new Date(), lastIngestSummary: summary },
-  });
-
-  if (events.length === 0) {
-    // A valid, empty (or non-token-usage) export is not an error — OTel exporters send on a
-    // fixed interval regardless of whether there's anything new to report.
-    return NextResponse.json({ accepted: 0, duplicates: 0, unassignedProjects: 0 });
-  }
-
   const result = await persistUsageEvents(collector.id, collector.userId, events);
+  await prisma.collector.update({ where: { id: collector.id }, data: { lastSeenAt: new Date(), kind: "otel",
+    lastIngestSummary: summary + (result.skippedSources?.length ? "; already tracked by the local collector; overlapping upload skipped" : ""),
+  } });
   return NextResponse.json(result);
 }

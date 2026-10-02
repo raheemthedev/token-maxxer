@@ -1,138 +1,37 @@
-# Token accounting rules
+# Token accounting
 
-This document is the single source of truth for how Token Maxxer counts tokens. Every connector
-and every leaderboard/profile view must follow it. If a source can't be reconciled with these
-rules, the UI must say so — it must never guess or silently substitute zero.
+## Buckets and headline total
 
-## Buckets
-
-Every usage record is normalized into these mutually-exclusive buckets before storage
-(`packages/shared/src/usage.ts`, `TokenBuckets`):
-
-| Bucket | Meaning |
-| --- | --- |
-| `input` | New (non-cached) input tokens processed |
-| `output` | Generated output tokens |
-| `cacheRead` | Input tokens served from a prompt cache |
-| `cacheWrite` | Input tokens newly written into a prompt cache |
-| `reasoning` | Reasoning/thinking tokens, **only** when the source reports them as a distinct field |
-
-A bucket is `null`, not `0`, when the source doesn't expose that category. `null` and `0` are
-never conflated anywhere in the API, database, or UI — a `null` bucket renders as "—" or
-"not reported," never as a value that participates silently in a sum.
-
-`reasoningIncludedInOutput` is a flag, not a bucket: when true, the source's `output` figure
-already contains reasoning tokens, and the headline total must not add `reasoning` again.
-
-## Headline total rule
+Each event stores mutually exclusive `input`, `output`, `cacheRead`, `cacheWrite` and `reasoning` buckets. Null means unavailable; it is not a reported zero. The common formula is:
 
 ```
-total = input + output + cacheRead + cacheWrite + (reasoningIncludedInOutput ? 0 : reasoning)
+input + output + cacheRead + cacheWrite + (reasoningIncludedInOutput ? 0 : reasoning)
 ```
 
-(`packages/shared/src/usage.ts#computeHeadlineTotal`). Missing buckets contribute `0` to this
-specific sum (that's a display/ranking convenience, not a claim that the true value is zero —
-`hasUnknownCategories()` is checked wherever we need to flag that).
+Missing categories contribute nothing to this display total and are flagged as incomplete. Claude reports exclusive input/output/cache counts, with reasoning included in output. Codex input includes cached input, so cached input is subtracted from fresh input; output includes reasoning. OpenCode already normalizes output to exclude reasoning, which is then included separately. Model volume is not normalized into a productivity score.
 
-This rule assumes the four base buckets are genuinely non-overlapping for a given source. That
-assumption is validated per connector, not assumed globally:
+## Periods
 
-- **Claude Code** (Anthropic API usage shape): `input_tokens`, `output_tokens`,
-  `cache_creation_input_tokens`, `cache_read_input_tokens` are reported as separate, non-overlapping
-  counts per the Anthropic Messages API. Anthropic does not currently break out reasoning as a
-  distinct token count for extended thinking — thinking tokens are billed as part of `output_tokens`
-  — so the Claude Code connector sets `reasoning = null` and `reasoningIncludedInOutput = true`.
-- **OpenCode**: its internal stats aggregate a `totalTokens` shape of
-  `{ input, output, reasoning, cache: { read, write } }` per session/message — i.e. it already
-  keeps reasoning distinct from output for providers that report it that way. The OpenCode
-  connector maps this directly and sets `reasoningIncludedInOutput = false` when `reasoning` is
-  populated.
-- **Synthetic fixtures** used for local development declare their own bucket values explicitly
-  and are labeled as synthetic everywhere they appear (see docs/SETUP.md).
+Daily periods begin at 00:00 UTC; weeks begin Monday 00:00 UTC. Incremental request events belong to their recorded timestamp. Codex logs are replayed locally: changed counters use the explicit latest-response usage when available, because cumulative totals can rewind or jump as history is restored. Older logs without response usage fall back to positive cumulative differences; an unexplained rewind adds nothing. Repeated readings and overlapping retained pages add nothing. Disjoint pages of the same thread combine into deterministic daily/model/project partitions. Updating a partition only updates that partition, never an entire session's previous days.
 
-If a future connector's categories can't be cleanly mapped to these buckets (e.g. a source that
-only reports one blended "tokens" number), it must report every bucket except one blended field
-as `null` rather than forcing a guess, and the UI's evidence indicator must show "partial
-categories" for that source.
+Telemetry is timed at its export observation. The generated settings explicitly request delta temporality, with one-minute exports. A delta interval crossing midnight is attributed to the export time; a numeric metric cannot expose the exact request timestamps inside its interval.
 
-## Why not model-normalized scores
+For cumulative telemetry, `UsageCounter` holds the latest checkpoint. Within one account-serialized transaction, ingestion computes the difference and stores a separately dated incremental usage row. Duplicate or delayed exports are ignored; resets add the newly reset counter reading. Missing buckets preserve their checkpoint rather than being overwritten with zero. A first cumulative reading whose start is not known to be in the same day becomes an all-time-only baseline. It must not be fabricated as today's usage.
 
-Token Maxxer is a consumption leaderboard, not a productivity leaderboard. Different models
-consume very different token counts to do similar work; we do not attempt to normalize across
-models, tools, or task difficulty. The public UI must not present raw token counts as a measure
-of skill, output quality, or productivity — see the "headline counting rule" callout required
-next to the leaderboard.
+Old cumulative records without recoverable period bounds also remain all-time-only. Codex's next complete scan replaces its legacy session-total rows with dated partitions. Existing telemetry rows remain an all-time baseline when their checkpoint is first upgraded. Neither migration moves lifetime history into the day of an upload.
 
-## Duplicate-count prevention
+The collector checks `/api/health` for accounting version 2 before uploading. An older server cannot safely combine dated Codex partitions with legacy totals; uploads remain queued until the server is upgraded.
 
-- **One canonical source per integration, in practice.** Claude Code exposes usage through two
-  surfaces — OTel export and local JSONL transcripts — and this product can ingest either. Using
-  both for the same machine is not blocked technically, but isn't a supported configuration either:
-  Anthropic doesn't guarantee the two surfaces report identical numbers for the same requests, and
-  nothing here reconciles them against each other. The dashboard presents OTel as the default and
-  the CLI collector as "Advanced" specifically to steer most users onto one path.
-- **Idempotent ingestion.** Every `UsageEvent` is uniquely keyed on `(collectorId, sourceEventId)`
-  at the database level (`@@unique` in `prisma/schema.prisma`). Re-uploading the same batch (retry,
-  collector restart, replayed history) is a no-op on the duplicates.
-- **Incremental vs. cumulative.** `eventType` distinguishes a delta record from a cumulative
-  snapshot. A connector that only exposes cumulative counters (e.g. a running session total) must
-  diff against the last observed snapshot itself before emitting an `incremental` event, or emit
-  `cumulative_snapshot` events and let the backend take the latest snapshot per `sourceEventId`
-  rather than summing snapshots together. Mixing the two event types for the same source without
-  this distinction is a bug, not a connector detail.
-- **No cross-source addition for the same requests.** If both a tool-level and a provider-level
-  integration could report the same underlying API calls, only one may be enabled per user per
-  provider at a time in the first release. This is a documented limitation, not solved generally.
+## Idempotency and canonical sources
 
-## OTel receiver: cumulative vs. delta
+Source event identity is scoped to the account and source. An account-level PostgreSQL advisory lock serializes ingestion, so retries and simultaneous collectors cannot create duplicate rows for the same event. The old collector/event database uniqueness constraint remains an additional safeguard. In-batch duplicates are collapsed; smaller or stale streaming readings never reduce a fuller saved reading. New history is bulk inserted, avoiding thousands of network round trips.
 
-`/api/otel/v1/metrics` (`src/lib/otel.ts`) ingests Claude Code's `claude_code.token.usage` OTLP
-counter, which OpenTelemetry allows to be exported with either **cumulative** or **delta**
-aggregation temporality — the payload itself declares which (`aggregationTemporality: 2` for
-cumulative, `1` for delta), so the receiver doesn't guess:
+Claude transcript and telemetry paths are alternatives. Ingestion preserves the method already used by an account. For legacy accounts that enabled both, transcript collection is canonical; views exclude overlapping telemetry evidence without deleting it. The collector reports skipped source coverage. This is a consistency rule, not provider verification or a claim that every pair of different source records can be reconciled.
 
-- **Delta**: each exported data point already *is* an increment. It's stored as an `incremental`
-  event keyed on `session.id` + `model` + the data point's own timestamp — structurally identical
-  to a JSONL transcript line.
-- **Cumulative**: each exported data point is a running total since the counter started. Storage
-  keys on `session.id` + `model` only (no timestamp), so every new export for that session+model
-  **upserts** (overwrites) the same row with the latest total — summing the final snapshot per
-  session gives the correct grand total without the receiver needing to diff against a previous
-  value itself. A Claude Code process restart gets a new `session.id` from Claude Code itself, which
-  is exactly the counter-reset boundary — the old session's last-known total is preserved as its
-  own finalized row rather than being overwritten by a counter that restarted from zero.
+## Privacy, attribution and validation
 
-Four `type` attribute values (`input`, `output`, `cacheRead`, `cacheCreation`) arrive as separate
-data points; the receiver merges them into the same bucket set as everywhere else in this system
-before persisting one row per (session, model, project[, timestamp]).
+Only an explicit metadata allowlist crosses the wire. Prompt/content fields, full paths, raw logs and credentials are excluded. Project fingerprints are salted hashes; a truncated folder hint is visible only to the owner. New projects are private, and only user-approved names/links enter public views. Merges redirect future ingestion while preserving the aggregate sum.
 
-Every distinct attribute combination is its own OTLP time series (e.g. `query_source` =
-`main`/`subagent`/`auxiliary`, fast mode, effort level). All of them are real token usage, so
-series that share a row's identity are **summed**, never overwritten. `session.id` and `vcs.*` are
-read from the data point's attributes first (where Claude Code puts them), the resource second. With
-no `session.id` at all, a cumulative series' own start time is used as the reset epoch instead.
+The API rejects negative/fractional/overflowing counts, invalid or future timestamps, malformed periods and full-path project hints. It always stores evidence as `locally_reported` regardless of the client's claim. Revocation and ownership are checked again inside the ingestion transaction.
 
-Values that aren't finite, are negative, or exceed the 32-bit column range are skipped (and
-counted in the collector's "last upload" note) rather than stored or allowed to fail the write.
-
-**Verification status (be honest about it):** the transport, header format and authentication were
-verified with a genuine Claude Code 2.1.284 process exporting `claude_code.session.count` and
-`claude_code.active_time.total` to production. A real `claude_code.token.usage` export has **not**
-been captured (it requires an authenticated API request, and the bundled binary used for that test
-was not logged in), so the token-usage handling is verified against payloads built from Claude Code's
-documented schema plus the attribute layout seen in the real metrics above — not against a live one.
-
-## Project attribution and reconciliation
-
-- Usage is attributed to a project only when a connector exposes a defensible session → project
-  relationship (working directory, git root, or explicit workspace metadata). Otherwise it is
-  stored with `projectId = null` and `attributionMethod = "unassigned"` and must render as
-  **Unassigned** everywhere, never silently dropped or folded into another project.
-- A user can manually assign unassigned usage to a project; this is stored as
-  `attributionMethod = "user_assigned"` and labeled as user-supplied in the UI, distinct from
-  connector-detected attribution.
-- Renaming, hiding, or merging projects reassigns `UsageEvent.projectId` values; it never
-  creates, deletes, or duplicates `UsageEvent` rows. The sum of a user's attributed usage plus
-  their unassigned usage must always equal their total ingested usage — this is a property any
-  project-management operation must preserve, and is worth a regression test before shipping
-  changes to merge/hide/rename.
+Regression tests cover period boundaries, model switches, counter resets, retries, concurrent collectors, legacy replacement, canonical methods, malformed metadata, privacy filtering and offline queue recovery against real isolated PostgreSQL.

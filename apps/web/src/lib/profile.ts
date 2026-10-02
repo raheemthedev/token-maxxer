@@ -1,3 +1,4 @@
+import { canonicalUsage } from "./canonicalUsage";
 import { computeHeadlineTotal, hasUnknownCategories, type TokenBuckets } from "@token-maxxer/shared";
 import { prisma } from "./prisma";
 
@@ -29,6 +30,13 @@ export interface PublicProfile {
 }
 
 export async function getPublicProfile(handle: string): Promise<PublicProfile | null> {
+  return getProfileData(handle, null);
+}
+export async function getPrivateProfilePreview(userId: string): Promise<PublicProfile | null> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { handle: true } });
+  return user?.handle ? getProfileData(user.handle, userId) : null;
+}
+async function getProfileData(handle: string, ownerId: string | null): Promise<PublicProfile | null> {
   const user = await prisma.user.findUnique({
     where: { handle },
     include: {
@@ -39,6 +47,7 @@ export async function getPublicProfile(handle: string): Promise<PublicProfile | 
       usageEvents: {
         select: {
           source: true,
+          connectorVersion: true,
           model: true,
           projectId: true,
           evidenceLevel: true,
@@ -53,7 +62,7 @@ export async function getPublicProfile(handle: string): Promise<PublicProfile | 
     },
   });
 
-  if (!user || !user.handle || !user.publishSettings?.isPublic) return null;
+  if (!user || !user.handle || (!user.publishSettings?.isPublic && user.id !== ownerId)) return null;
 
   let totalTokens = 0;
   let unknown = false;
@@ -62,7 +71,7 @@ export async function getPublicProfile(handle: string): Promise<PublicProfile | 
   const byModelMap = new Map<string, number>();
   const tokensByProjectId = new Map<string, number>();
 
-  for (const event of user.usageEvents) {
+  for (const event of canonicalUsage(user.usageEvents)) {
     const buckets: TokenBuckets = {
       input: event.inputTokens,
       output: event.outputTokens,
@@ -99,13 +108,14 @@ export async function getPublicProfile(handle: string): Promise<PublicProfile | 
     name: user.name,
     image: user.image,
     bio: user.bio,
-    publishedAt: user.publishSettings.publishedAt,
+    publishedAt: user.publishSettings?.publishedAt ?? null,
     totalTokens,
     hasUnknownCategories: unknown,
     bucketTotals,
     bySource: Array.from(bySourceMap.entries()).map(([source, v]) => ({ source, ...v })),
     byModel: Array.from(byModelMap.entries())
       .map(([model, tokens]) => ({ model, tokens }))
+      .filter(({ tokens }) => tokens > 0)
       .sort((a, b) => b.tokens - a.tokens),
     projects: user.projects
       .filter((p): p is typeof p & { displayName: string } => Boolean(p.displayName))

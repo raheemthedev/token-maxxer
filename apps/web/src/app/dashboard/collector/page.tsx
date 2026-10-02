@@ -1,117 +1,30 @@
-import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { PairingCodeGenerator } from "@/components/PairingCodeGenerator";
+import { CollectorOnboarding } from "@/components/CollectorOnboarding";
 import { OtelSetupGenerator } from "@/components/OtelSetupGenerator";
-import { RevokeCollectorButton } from "@/components/RevokeCollectorButton";
 import { DatabaseUnavailableNotice } from "@/components/DatabaseUnavailableNotice";
 import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
-
-export const metadata: Metadata = { title: "Connect your tools" };
 
 export default async function CollectorPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/sign-in");
-
-  let collectors: Awaited<ReturnType<typeof prisma.collector.findMany>>;
+  let collectors;
   try {
-    collectors = await prisma.collector.findMany({
-      where: { userId: session.user.id },
-      orderBy: { createdAt: "desc" },
-    });
-  } catch {
-    return <DatabaseUnavailableNotice />;
-  }
-
+    collectors = await prisma.collector.findMany({ where: { userId: session.user.id }, orderBy: { createdAt: "desc" },
+      select: { id: true, name: true, kind: true, status: true, createdAt: true, lastSeenAt: true, lastIngestSummary: true, connectorStatuses: true } });
+  } catch { return <DatabaseUnavailableNotice />; }
   const hdrs = await headers();
-  const proto = hdrs.get("x-forwarded-proto") ?? "http";
-  const host = hdrs.get("host") ?? "localhost:3000";
-  const serverUrl = `${proto}://${host}`;
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Collector</h1>
-        <p className="mt-1 text-foreground-muted">
-          One local collector detects supported tools (Claude Code, OpenCode) and uploads usage
-          metadata only — never prompts, code, or full file paths.
-        </p>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-3">
-        {[
-          ["Claude Code", "Automatic", "Paste-once snippet, no process to run.", "green"],
-          ["Codex CLI", "CLI collector", "Reads ~/.codex session logs locally.", "accent"],
-          ["OpenCode", "Needs validation", "CLI output isn't machine-readable yet.", "amber"],
-        ].map(([name, tag, body, tone]) => (
-          <Card key={name} className="p-4">
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-medium">{name}</span>
-              <Badge tone={tone as "green" | "accent" | "amber"}>{tag}</Badge>
-            </div>
-            <p className="mt-1 text-sm text-foreground-muted">{body}</p>
-          </Card>
-        ))}
-      </div>
-
-      <OtelSetupGenerator />
-
-      <details>
-        <summary className="cursor-pointer text-sm font-medium text-foreground-muted">
-          Advanced: manual collector (required for OpenCode, or for more precise project detection)
-        </summary>
-        <div className="mt-3">
-          <PairingCodeGenerator serverUrl={serverUrl} />
-        </div>
-      </details>
-
-      <section>
-        <h2 className="mb-3 font-medium">Paired collectors</h2>
-        {collectors.length === 0 ? (
-          <Card className="text-sm text-foreground-muted">None yet.</Card>
-        ) : (
-          <Card className="divide-y divide-border-soft p-0">
-            {collectors.map((c) => (
-              <div key={c.id} className="flex items-center justify-between px-5 py-3.5">
-                <div>
-                  <p className="flex items-center gap-2 text-sm font-medium">
-                    {c.name}
-                    <Badge tone={c.status === "active" ? "green" : "neutral"}>{c.status}</Badge>
-                  </p>
-                  <p className="mt-0.5 text-xs text-foreground-muted">
-                    Paired {c.createdAt.toLocaleDateString()}
-                    {c.lastSeenAt
-                      ? ` · last upload ${new Date(c.lastSeenAt).toLocaleString()}`
-                      : c.status === "active" && " · nothing received yet"}
-                  </p>
-                  {c.lastIngestSummary && (
-                    <p className="mt-0.5 text-xs text-foreground-muted">Last upload: {c.lastIngestSummary}</p>
-                  )}
-                </div>
-                <RevokeCollectorButton id={c.id} active={c.status === "active"} />
-              </div>
-            ))}
-          </Card>
-        )}
-      </section>
-
-      <Card className="bg-surface-muted !shadow-none">
-        <h2 className="mb-2 font-medium">Collector commands</h2>
-        <pre className="overflow-x-auto rounded-xl bg-surface p-3.5 font-mono text-sm">
-{`token-maxxer-collector status          # see detected tools
-token-maxxer-collector run --once      # collect + upload once
-token-maxxer-collector run             # keep collecting every 5 minutes
-token-maxxer-collector pause / resume  # pause without unpairing
-token-maxxer-collector unpair          # remove local pairing`}
-        </pre>
-        <p className="mt-3 text-sm text-foreground-muted">
-          Diagnostics reported by the collector never include prompt/response content or full
-          local paths.
-        </p>
-      </Card>
-    </div>
-  );
+  const serverUrl = process.env.AUTH_URL || `${hdrs.get("x-forwarded-proto") ?? "http"}://${hdrs.get("host") ?? "localhost:3000"}`;
+  return <div className="space-y-8">
+    <div><span className="eyebrow">Setup</span><h1 className="mt-1 text-3xl font-semibold tracking-tight">Connect your tools</h1><p className="mt-1 text-foreground-muted">Set up once. Keep building. Your usage updates in the background.</p></div>
+    <CollectorOnboarding serverUrl={serverUrl} initialNow={+new Date()} initialCollectors={JSON.parse(JSON.stringify(collectors))} />
+    <details><summary className="cursor-pointer text-sm font-medium text-foreground-muted">Alternative: Claude Code telemetry only</summary><div className="mt-3"><OtelSetupGenerator /></div></details>
+    <Card className="bg-surface-muted/60 !shadow-none"><h2 className="eyebrow mb-3">Manage tracking from your terminal</h2>
+      <p className="mb-3 text-sm text-foreground-muted">Use the installed collector to check status or pause uploads. On Windows, replace <code>~</code> with your user folder.</p>
+      <pre className="overflow-x-auto rounded-2xl bg-ink p-4 font-mono text-xs leading-relaxed text-white/90">{`node ~/.token-maxxer/collector.cjs status\nnode ~/.token-maxxer/collector.cjs pause\nnode ~/.token-maxxer/collector.cjs resume\nnode ~/.token-maxxer/collector.cjs stop\nnode ~/.token-maxxer/collector.cjs unpair`}</pre>
+      <p className="mt-3 text-xs text-foreground-muted">Stop removes automatic startup. Unpair also removes this machine&apos;s pairing. Revoke a collector here to block uploads immediately.</p>
+    </Card>
+  </div>;
 }

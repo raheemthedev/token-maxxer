@@ -29,21 +29,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Cannot merge a project into itself." }, { status: 400 });
   }
 
-  const [source, target] = await Promise.all([
-    prisma.project.findUnique({ where: { id: sourceId } }),
-    prisma.project.findUnique({ where: { id: targetId } }),
-  ]);
-  if (!source || !target || source.userId !== session.user.id || target.userId !== session.user.id) {
-    return NextResponse.json({ error: "Project not found." }, { status: 404 });
-  }
-  if (source.mergedIntoId || target.mergedIntoId) {
-    return NextResponse.json({ error: "One of these projects is already merged elsewhere." }, { status: 400 });
-  }
-
-  await prisma.$transaction([
-    prisma.usageEvent.updateMany({ where: { projectId: sourceId }, data: { projectId: targetId } }),
-    prisma.project.update({ where: { id: sourceId }, data: { mergedIntoId: targetId, hidden: true } }),
-  ]);
-
-  return NextResponse.json({ ok: true });
+  const userId = session.user.id;
+  return prisma.$transaction(async tx => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
+    const [source, target] = await Promise.all([
+      tx.project.findUnique({ where: { id: sourceId } }),
+      tx.project.findUnique({ where: { id: targetId } }),
+    ]);
+    if (!source || !target || source.userId !== userId || target.userId !== userId) {
+      return NextResponse.json({ error: "Project not found." }, { status: 404 });
+    }
+    if (source.mergedIntoId || target.mergedIntoId) {
+      return NextResponse.json({ error: "One of these projects is already merged elsewhere." }, { status: 400 });
+    }
+    await tx.usageEvent.updateMany({ where: { projectId: sourceId, userId }, data: { projectId: targetId } });
+    await tx.project.update({ where: { id: sourceId }, data: { mergedIntoId: targetId, hidden: true } });
+    return NextResponse.json({ ok: true });
+  });
 }

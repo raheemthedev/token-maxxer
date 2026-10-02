@@ -1,36 +1,20 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { generateCollectorToken, getOrCreateProjectSalt, hashCollectorToken } from "@/lib/collectorAuth";
-
-/**
- * Session-authenticated (unlike /api/collector/pair, which is a public pairing-code exchange for
- * the CLI). The browser is already signed in when the user clicks "Generate setup snippet", so
- * there's no separate device to pair — we can issue the token directly, matching how e.g. WakaTime
- * hands you an API key immediately rather than a short-lived pairing code.
- */
+import { generateCollectorToken, generateProjectSalt, hashCollectorToken } from "@/lib/collectorAuth";
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  }
-
-  const projectSalt = await getOrCreateProjectSalt(session.user.id);
+  if (!session?.user?.id) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  const userId = session.user.id;
   const token = generateCollectorToken();
-
-  await prisma.collector.create({
-    data: {
-      userId: session.user.id,
-      name: "Claude Code (OpenTelemetry)",
-      tokenHash: hashCollectorToken(token),
-      projectSalt,
-      status: "active",
-    },
+  const created = await prisma.$transaction(async tx => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
+    const cli = await tx.usageEvent.findFirst({ where: { userId, source: "claude_code", connectorVersion: { not: { startsWith: "otel-" } } } });
+    if (cli) return null;
+    const previous = await tx.collector.findFirst({ where: { userId }, select: { projectSalt: true } });
+    return tx.collector.create({ data: { userId, name: "Claude Code (OpenTelemetry)", kind: "otel", tokenHash: hashCollectorToken(token), projectSalt: previous?.projectSalt ?? generateProjectSalt() } });
   });
-
-  const proto = request.headers.get("x-forwarded-proto") ?? "http";
-  const host = request.headers.get("host") ?? "localhost:3000";
-  const metricsEndpoint = `${proto}://${host}/api/otel/v1/metrics`;
-
-  return NextResponse.json({ token, metricsEndpoint });
+  if (!created) return NextResponse.json({ error: "Your local collector already tracks Claude Code. Keep that connection to include history and avoid duplicate counts." }, { status: 409 });
+  const metricsEndpoint = `${new URL(process.env.AUTH_URL || request.url).origin}/api/otel/v1/metrics`;
+  return NextResponse.json({ token, metricsEndpoint, collectorId: created.id }, { headers: { "Cache-Control": "no-store" } });
 }

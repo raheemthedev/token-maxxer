@@ -8,18 +8,24 @@ const buttonClass =
 
 export function RevokeCollectorButton({ id, active }: { id: string; active: boolean }) {
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   async function run(url: string, confirmText: string) {
     if (!confirm(confirmText)) return;
     setPending(true);
-    await fetch(url, { method: "DELETE" });
-    setPending(false);
-    router.refresh();
+    setError(null);
+    try {
+      const response = await fetch(url, { method: "DELETE" });
+      if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data.error || "The collector could not be updated."); }
+      router.refresh();
+    } catch (e) { setError(e instanceof Error ? e.message : "Connection failed. Try again."); }
+    finally { setPending(false); }
   }
 
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
+      {error && <p role="alert" className="w-full text-xs text-red-700">{error}</p>}
       {active && (
         <button
           disabled={pending}

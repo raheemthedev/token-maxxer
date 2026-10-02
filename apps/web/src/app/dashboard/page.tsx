@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
+import { formatTokens as compact } from "@/lib/formatTokens";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { getDashboardData } from "@/lib/dashboard";
 import { PublishToggle } from "@/components/PublishToggle";
-import { ProjectCard } from "@/components/ProjectCard";
+import { ProjectList } from "@/components/ProjectList";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 import { DatabaseUnavailableNotice } from "@/components/DatabaseUnavailableNotice";
+import { collectorStatus } from "@/lib/collectorStatus";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { DashboardOverview } from "@/components/DashboardOverview";
@@ -14,12 +16,7 @@ import { parseRange } from "@/components/ActivityCard";
 import { ShareBar } from "@/components/ui/Bars";
 
 const SOURCE_LABELS: Record<string, string> = { claude_code: "Claude Code", codex: "Codex CLI", opencode: "OpenCode", synthetic: "Demo" };
-function compact(n: number): string {
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
-}
+
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -34,8 +31,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   } catch {
     return <DatabaseUnavailableNotice />;
   }
-  const visibleProjects = data.projects.filter((p) => !p.hidden);
-  const hiddenProjects = data.projects.filter((p) => p.hidden);
 
   return (
     <div className="space-y-8">
@@ -45,18 +40,18 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <p className="mt-1 text-foreground-muted">Your usage, projects, and sharing settings.</p>
         </div>
         {session.user.handle && (
-          <Link href={`/u/${session.user.handle}`} className="rounded-full border border-border-soft px-4 py-2 text-sm font-medium transition-colors hover:bg-surface-muted">
-            View public profile ↗
+          <Link href={data.isPublic ? `/u/${session.user.handle}` : "/dashboard/preview"} className="rounded-full border border-border-soft px-4 py-2 text-sm font-medium transition-colors hover:bg-surface-muted">
+            {data.isPublic ? "View public profile ↗" : "Preview your profile"}
           </Link>
         )}
       </div>
 
-      {(data.collectors.length === 0 || data.totalTokens === 0) && (
+      {(data.collectors.length === 0 || data.totalTokens === 0 || !data.isPublic) && (
         <Card className="border-accent/30 bg-accent-soft/40">
           <h2 className="font-medium">Get your first tokens on the board</h2>
           <ol className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
             {[
-              ["Connect a tool", "Generate a setup snippet (Claude Code) or pair the CLI collector (Codex, OpenCode).", data.collectors.length > 0],
+              ["Connect a tool", "Install one collector for Claude Code, Codex and OpenCode. It runs in the background.", data.collectors.length > 0],
               ["See your usage", "Totals, tools and detected projects appear here after the first upload.", data.totalTokens > 0],
               ["Publish when ready", "Nothing is public until you switch it on below.", data.isPublic],
             ].map(([title, body, done], i) => (
@@ -107,7 +102,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </div>
         {data.collectors.length === 0 ? (
           <Card className="text-sm text-foreground-muted">
-            No collector paired yet.{" "}
+            No collector connected yet.{" "}
             <Link href="/dashboard/collector" className="text-accent hover:underline">
               Set one up
             </Link>{" "}
@@ -116,11 +111,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         ) : (
           <Card className="divide-y divide-border-soft p-0">
             {data.collectors.map((c) => (
-              <div key={c.id} className="flex items-center justify-between px-5 py-3 text-sm">
+              <div key={c.id} className="flex flex-col items-start justify-between gap-2 px-5 py-3 text-sm sm:flex-row sm:items-center">
                 <span className="font-medium">{c.name}</span>
-                <span className="flex items-center gap-2 text-foreground-muted">
+                <span className="flex flex-wrap items-center gap-2 text-foreground-muted">
                   {c.lastSeenAt && <span>last seen {new Date(c.lastSeenAt).toLocaleString()}</span>}
-                  <Badge tone={c.status === "active" ? "green" : "neutral"}>{c.status}</Badge>
+                  <Badge tone={collectorStatus(c).tone} dot live={collectorStatus(c).tone === "green"}>{collectorStatus(c).label}</Badge>
                 </span>
               </div>
             ))}
@@ -129,48 +124,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       </section>
 
       <section>
-        <h2 className="mb-3 font-medium">
-          Projects{" "}
-          <span className="text-sm font-normal text-foreground-muted">
-            (rename, publish, hide, link, or merge duplicates)
-          </span>
-        </h2>
+        <h2 className="mb-3 font-medium">Projects</h2>
         {data.unassignedTokens > 0 && (
-          <Card className="mb-4 bg-surface-muted text-sm text-foreground-muted !shadow-none">
-            {data.unassignedTokens.toLocaleString()} tokens couldn&apos;t be attributed to a
-            project automatically and are not shown below or on your public profile.
-          </Card>
+          <p className="mb-4 text-sm text-foreground-muted">
+            {compact(data.unassignedTokens)} tokens without a project. Included in your total.
+          </p>
         )}
-        {visibleProjects.length === 0 ? (
-          <Card className="text-sm text-foreground-muted">
-            No projects detected yet — pair a collector to get started.
-          </Card>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {visibleProjects.map((p) => (
-              <ProjectCard
-                key={p.id}
-                project={p}
-                mergeTargets={visibleProjects
-                  .filter((other) => other.id !== p.id)
-                  .map((other) => ({ id: other.id, label: other.displayName ?? other.detectedNameLocal }))}
-              />
-            ))}
-          </div>
-        )}
-
-        {hiddenProjects.length > 0 && (
-          <details className="mt-4">
-            <summary className="cursor-pointer text-sm text-foreground-muted">
-              {hiddenProjects.length} hidden project(s)
-            </summary>
-            <div className="mt-3 grid gap-4 sm:grid-cols-2">
-              {hiddenProjects.map((p) => (
-                <ProjectCard key={p.id} project={p} mergeTargets={[]} />
-              ))}
-            </div>
-          </details>
-        )}
+        <ProjectList projects={data.projects} />
       </section>
 
       <section className="border-t border-border-soft pt-6">

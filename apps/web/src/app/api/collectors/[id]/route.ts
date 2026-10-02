@@ -29,22 +29,17 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     return NextResponse.json({ error: "Revoke the collector before removing it." }, { status: 400 });
   }
 
-  if (!remove) {
-    await prisma.collector.update({
-      where: { id },
-      data: { status: "revoked", revokedAt: collector.revokedAt ?? new Date() },
-    });
-  }
-
-  let deletedUsageEvents = 0;
-  if (deleteUsage) {
-    const result = await prisma.usageEvent.deleteMany({ where: { collectorId: id, userId: session.user.id } });
-    deletedUsageEvents = result.count;
-  }
-
-  if (remove) {
-    await prisma.collector.delete({ where: { id } });
-  }
+  const deletedUsageEvents = await prisma.$transaction(async tx => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${session.user.id}))`;
+    if (!remove) await tx.collector.update({ where: { id }, data: { status: "revoked", revokedAt: collector.revokedAt ?? new Date() } });
+    let deleted = 0;
+    if (deleteUsage) {
+      deleted = (await tx.usageEvent.deleteMany({ where: { collectorId: id, userId: session.user.id } })).count;
+      await tx.usageCounter.deleteMany({ where: { collectorId: id, userId: session.user.id } });
+    }
+    if (remove) await tx.collector.delete({ where: { id } });
+    return deleted;
+  });
 
   return NextResponse.json({ ok: true, deletedUsageEvents });
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatTokens as compact } from "@/lib/formatTokens";
 import { useId, useState } from "react";
 
 export interface ChartPoint {
@@ -7,12 +8,6 @@ export interface ChartPoint {
   value: number;
 }
 
-function compact(n: number): string {
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(Math.round(n));
-}
 
 /** Smooth gradient area chart with a hover tooltip, dashed peak line and glowing end point. */
 export function AreaChart({ points, height = 180 }: { points: ChartPoint[]; height?: number }) {

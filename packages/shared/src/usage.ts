@@ -61,17 +61,19 @@ export interface NormalizedUsageEvent {
   /** Stable id from the source used for idempotent ingestion (e.g. API request id, message uuid). */
   sourceEventId: string;
   eventType: UsageEventType;
+  /** An older session-total record replaced by these complete daily partitions. */
+  replacesSourceEventId?: string;
   observedAt: string; // ISO 8601
   periodStart: string | null;
   periodEnd: string | null;
   tokens: TokenBuckets;
   /**
-   * Local-only project fingerprint (e.g. a hash of the git root or working directory). Never
-   * uploaded verbatim — the backend only ever sees an opaque project id the user has approved.
+   * Salted, one-way project fingerprint. This hash crosses the wire; the local path does not.
+   * The server creates a private project until its owner approves a public display name.
    */
   projectFingerprint: string | null;
   projectDetectionMethod: ProjectDetectionMethod | null;
-  /** Raw local folder/session name for the collector's own local UI. Never sent to the backend. */
+  /** Local folder hint; the upload boundary sends only a redacted basename to the private dashboard. */
   localProjectHint: string | null;
   evidenceLevel: EvidenceLevel;
 }

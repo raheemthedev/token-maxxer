@@ -42,8 +42,15 @@ export async function getLeaderboard(period: LeaderboardPeriod): Promise<Leaderb
             select: { displayName: true, linkUrl: true },
           },
           usageEvents: {
-            where: { observedAt: { gte: start, lte: end } },
+            where: { observedAt: { gte: start, lte: end },
+              ...(period === "all_time" ? {} : { OR: [
+                { eventType: "incremental" },
+                { eventType: "cumulative_snapshot", periodStart: { not: null }, periodEnd: { not: null } },
+              ] }),
+            },
             select: {
+              connectorVersion: true,
+              source: true,
               inputTokens: true,
               outputTokens: true,
               cacheReadTokens: true,
@@ -57,12 +64,19 @@ export async function getLeaderboard(period: LeaderboardPeriod): Promise<Leaderb
     },
   });
 
+  const localUsers = new Set((await prisma.usageEvent.findMany({
+    where: { userId: { in: publicUsers.map(p => p.userId) }, source: "claude_code", OR: [
+      { connectorVersion: null }, { connectorVersion: { not: { startsWith: "otel-" } } },
+    ] }, select: { userId: true }, distinct: ["userId"],
+  })).map(e => e.userId));
+
   const rows: LeaderboardRow[] = publicUsers
     .filter((p) => p.user.handle)
     .map((p) => {
       let total = 0;
       let unknown = false;
       for (const event of p.user.usageEvents) {
+        if (localUsers.has(p.userId) && event.source === "claude_code" && event.connectorVersion?.startsWith("otel-")) continue;
         const buckets: TokenBuckets = {
           input: event.inputTokens,
           output: event.outputTokens,

@@ -10,7 +10,7 @@ function slugify(input: string): string {
 
 /** Picks a unique @handle for a newly created user from their name/email, appending -2, -3, ... on collision. */
 export async function assignHandle(userId: string, seed: string): Promise<string> {
-  const base = slugify(seed).slice(0, 24);
+  const base = slugify(seed.includes("@") ? seed.split("@")[0] : seed).slice(0, 24);
   let candidate = base;
   let suffix = 1;
 
@@ -18,14 +18,18 @@ export async function assignHandle(userId: string, seed: string): Promise<string
   for (let attempt = 0; attempt < 50; attempt++) {
     const existing = await prisma.user.findUnique({ where: { handle: candidate } });
     if (!existing) {
-      await prisma.user.update({ where: { id: userId }, data: { handle: candidate } });
-      return candidate;
+      try {
+        await prisma.user.update({ where: { id: userId }, data: { handle: candidate } });
+        return candidate;
+      } catch (error) {
+        if (!error || typeof error !== "object" || !("code" in error) || error.code !== "P2002") throw error;
+      }
     }
     suffix += 1;
     candidate = `${base}-${suffix}`;
   }
 
-  const fallback = `${base}-${userId.slice(0, 6)}`;
+  const fallback = `${base}-${userId.slice(-10)}`;
   await prisma.user.update({ where: { id: userId }, data: { handle: fallback } });
   return fallback;
 }

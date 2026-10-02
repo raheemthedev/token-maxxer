@@ -12,6 +12,9 @@
   of fields that carries `usage`/`model`/`timestamp`/`sessionId`/`cwd`-equivalent metadata and
   explicitly skip content fields (see docs/SUPPORT_MATRIX.md).
 
+The owner’s private dashboard receives a redacted folder basename to help identify projects.
+It never receives a full path, and that hint never appears in public profiles or leaderboards.
+
 ## Identity vs. access
 
 Signing in with GitHub or email identifies a person in Token Maxxer. It grants **no** access to
@@ -27,7 +30,7 @@ not `repo` — so signing in never grants this app access to private repositorie
 Every `UsageEvent` carries an `evidenceLevel`:
 
 - `locally_reported` — received from a user's own paired collector or local records. This is the
-  only level either connector in this release can produce.
+  only level the connectors in this release can produce.
 - `provider_verified` — would mean confirmed through a provider-backed verification mechanism.
   **Not implemented in this release.** A paired collector authenticates *who sent the data*; it
   says nothing about whether the local records it read were altered before upload. Nothing in this

@@ -1,41 +1,8 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { bodySchema } from "@/lib/ingestSchema";
 import { prisma } from "@/lib/prisma";
 import { hashCollectorToken } from "@/lib/collectorAuth";
 import { persistUsageEvents } from "@/lib/ingest";
-
-const tokenBucketsSchema = z.object({
-  input: z.number().nullable(),
-  output: z.number().nullable(),
-  cacheRead: z.number().nullable(),
-  cacheWrite: z.number().nullable(),
-  reasoning: z.number().nullable(),
-  reasoningIncludedInOutput: z.boolean(),
-});
-
-const eventSchema = z.object({
-  source: z.enum(["claude_code", "opencode", "codex", "synthetic"]),
-  sourceVersion: z.string().nullable().optional(),
-  connectorVersion: z.string().nullable().optional(),
-  provider: z.string().nullable().optional(),
-  model: z.string().nullable().optional(),
-  sourceEventId: z.string().min(1),
-  eventType: z.enum(["incremental", "cumulative_snapshot"]),
-  observedAt: z.string(),
-  periodStart: z.string().nullable().optional(),
-  periodEnd: z.string().nullable().optional(),
-  tokens: tokenBucketsSchema,
-  projectFingerprintHash: z.string().nullable().optional(),
-  projectDetectionMethod: z.enum(["session_metadata", "git_root", "workspace_folder"]).nullable().optional(),
-  projectHintRedacted: z.string().nullable().optional(),
-  // Accepted but never trusted verbatim — see note below.
-  evidenceLevel: z.enum(["locally_reported", "provider_verified"]).optional(),
-});
-
-const bodySchema = z.object({
-  collectorName: z.string().min(1).max(100),
-  events: z.array(eventSchema).max(2000),
-});
 
 /**
  * Authenticated by a paired collector's bearer token (not a user session). Used by the CLI
@@ -59,13 +26,18 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request body.", details: parsed.error.flatten() }, { status: 400 });
   }
-  const { collectorName, events } = parsed.data;
+  const { collectorName, events, connectorStatuses } = parsed.data;
+  if (events.some(e => e.source === "codex" && !e.periodEnd)) {
+    return NextResponse.json({ error: "Your collector needs an update. Re-run the install command from your Collector page." }, { status: 409 });
+  }
+  const result = await persistUsageEvents(collector.id, collector.userId, events);
 
   await prisma.collector.update({
     where: { id: collector.id },
-    data: { lastSeenAt: new Date(), name: collectorName },
+    data: { lastSeenAt: new Date(), name: collectorName, connectorStatuses,
+      lastIngestSummary: `${result.accepted} new, ${result.duplicates} already seen` + (result.skippedSources?.length ? "; Claude Code already tracked via another method; overlapping uploads skipped" : ""),
+    },
   });
 
-  const result = await persistUsageEvents(collector.id, collector.userId, events);
   return NextResponse.json(result);
 }

@@ -1,3 +1,4 @@
+import { formatTokens as compact } from "@/lib/formatTokens";
 import type { ReactNode } from "react";
 import type { Series } from "@/lib/series";
 import { AreaChart } from "@/components/ui/AreaChart";
@@ -12,12 +13,6 @@ export function parseRange(raw: string | undefined): Range {
   return (RANGES as readonly number[]).includes(n) ? (n as Range) : 30;
 }
 
-function compact(n: number): string {
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
-}
 
 const SOURCE_LABELS: Record<string, string> = { claude_code: "Claude Code", codex: "Codex CLI", opencode: "OpenCode" };
 
@@ -43,7 +38,7 @@ export function ActivityCard({
   return (
     <div className="card p-6 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="eyebrow">Daily activity · UTC</span>
+        <span className="eyebrow">Usage · last {range} days</span>
         <Segmented
           active={String(range)}
           options={RANGES.map((r) => ({ key: String(r), label: `${r}d`, href: `${basePath}?range=${r}` }))}
@@ -54,7 +49,7 @@ export function ActivityCard({
         <span className="stat-number text-5xl font-semibold leading-none sm:text-6xl">{compact(series.total)}</span>
         <Delta pct={series.deltaPct} label={`vs earlier ${Math.floor(range / 2)}d`} />
       </div>
-      <p className="mt-1 text-sm text-foreground-muted">tokens in the last {range} days</p>
+      <p className="mt-1 text-sm text-foreground-muted">tokens · {fmtDay(pts[0].date)} – {fmtDay(pts[pts.length - 1].date)} · UTC</p>
 
       <div className="mt-6">
         {hasData ? (

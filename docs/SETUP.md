@@ -1,149 +1,59 @@
-# Setup
+# Setup and operations
 
-## Layout
+## Local development
 
-```
-apps/web            Next.js app: leaderboard, profiles, dashboard, API routes, Prisma schema
-packages/shared      Normalized usage types + accounting rules, used by both web and collector
-packages/collector   Local CLI collector (Claude Code + OpenCode connectors)
-docs/                ACCOUNTING.md, SUPPORT_MATRIX.md, PRIVACY.md (this file: SETUP.md)
-```
+Run `npm install` then `npm run dev`. If `DATABASE_URL` is absent, the development runner starts bundled PostgreSQL on loopback port 55432, keeps its data under ignored `.local/postgres`, creates random local secrets, preserves existing `.env.local` values, and pushes the schema. Stop the runner to stop its database. If port 3000 is occupied, Next.js prints the actual port to use.
 
-npm workspaces (root `package.json`) tie the three packages together — everything installs from
-the repo root.
+To use your own database instead, set `DATABASE_URL` in `apps/web/.env.local`. The runner uses that database and does not start the bundled one. `npm run db:seed` is optional and creates clearly labelled synthetic fixtures; do not run it against production unless you intentionally want demo data.
 
-## 1. Install
+Development-only email links are printed to the terminal. No production email link is silently logged instead of being delivered.
 
-```bash
-npm install
-```
+## Production configuration
 
-This also runs Prisma's `postinstall` generate step for `apps/web`.
+Set these in Vercel (or the chosen production host):
 
-## 2. Configure environment
+- `DATABASE_URL`: PostgreSQL connection string.
+- `AUTH_SECRET`: a random secret, e.g. `openssl rand -base64 32`.
+- `COLLECTOR_TOKEN_SECRET`: another independently generated secret. Preserve it across deployments; rotating it invalidates existing collector tokens.
+- `AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET`: GitHub OAuth credentials. Callback: `https://YOUR_DOMAIN/api/auth/callback/github`. Only profile/email scopes are requested.
+- Optional `EMAIL_SERVER` and `EMAIL_FROM`: SMTP transport and sender for real email sign-in. With neither configured, use GitHub; the email form is hidden in production.
+- Optional `AUTH_URL`: canonical public origin, useful behind proxies. Vercel hosts are trusted automatically; other hosts must explicitly set `AUTH_TRUST_HOST=true` when their proxy is trusted.
 
-```bash
-cp apps/web/.env.example apps/web/.env
-```
+Existing `.vercel/project.json` identifies this repository's deployment. Keep the monorepo root as `.`; install with `npm install`, build with `npm run build`, output `apps/web/.next`. The build creates the standalone collector and download checksum, generates Prisma, and on Vercel pushes the additive schema changes. Schema push is an early-stage convenience; use reviewed Prisma migrations before managing larger production datasets.
 
-The app is Postgres-only (Neon, provisioned via Vercel's marketplace integration in production) —
-set `DATABASE_URL` to a Postgres connection string before step 3 below. A free Neon project works
-fine for local dev too; reuse the same one your deployment uses, or create a separate one. Left
-empty, the app still boots — every page just shows a "database not configured" notice instead of
-crashing. Sign-in shows as "not configured" until you add credentials, and email magic links print
-to the server console instead of sending, until `EMAIL_SERVER`/`EMAIL_FROM` are set.
+Before inviting people, verify `GET /api/health` returns 200, GitHub OAuth completes against the actual domain, and a synthetic collector upload appears in a private dashboard. A successful build alone does not prove external credentials work.
 
-To turn on real sign-in:
+## End-user setup
 
-- **GitHub OAuth**: create an OAuth app at <https://github.com/settings/developers> with callback
-  URL `http://localhost:3000/api/auth/callback/github` (or your deployed domain's equivalent), then
-  set `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET`. Only the default `read:user` scope is requested —
-  this app never asks for `repo` access.
-- **Email sign-in**: set `EMAIL_SERVER` (an SMTP connection string) and `EMAIL_FROM`.
-- Set a real `AUTH_SECRET` (e.g. `openssl rand -base64 32`) before deploying anywhere public.
+The **Connect tools** page generates a one-use code valid for ten minutes. Its macOS/Linux or Windows command downloads a standalone collector from the same host, checks its checksum, pairs it, and installs background tracking. Users need Node.js 20+. Linux users also need a running cron service. Credentials are stored in the user's private `.token-maxxer` folder, never in a scheduled command or service definition.
 
-## 3. Database
+The collector sends a heartbeat every five minutes even when there are no new tokens. The browser polls its own authenticated status every five seconds and shows waiting, receiving, stale, revoked and tool-specific states. Sleeping machines naturally appear stale; they retry after waking. Unsupported tools do not block supported ones.
 
-```bash
-npm run db:push     # sync the schema to your Postgres database
-npm run db:seed      # load synthetic demo fixtures (handles prefixed demo-*, clearly labeled in the UI)
+Commands (replace `~` with the user folder on Windows):
+
+```sh
+node ~/.token-maxxer/collector.cjs status
+node ~/.token-maxxer/collector.cjs run --once
+node ~/.token-maxxer/collector.cjs pause
+node ~/.token-maxxer/collector.cjs resume
+node ~/.token-maxxer/collector.cjs stop
+node ~/.token-maxxer/collector.cjs unpair
 ```
 
-`db:seed` is idempotent — it deletes and recreates rows for handles starting `demo-` each time.
+`stop` removes automatic startup and keeps pairing/data. `unpair` also removes local pairing and pending metadata. Server revocation blocks the token immediately. Account/data deletion remains an explicit user action.
 
-## 4. Run
+## Updating existing collectors
 
-```bash
-npm run dev
-```
+Download and rerun the current install command. Pairing the same account with its existing bearer token refreshes the same collector rather than leaving a duplicate. Switching accounts requires the explicit `--replace` option.
 
-Visit `http://localhost:3000` — the leaderboard should show the seeded `demo-*` rows with a
-"Demo data" badge. Sign in (once GitHub or email is configured) to reach `/dashboard`.
+For a machine that is already paired and just needs background startup or an update, run the installer with `--server https://YOUR_DOMAIN` and omit `--code`. It preserves the existing pairing.
 
-## 5. Try tracking your own real usage (optional)
+The first upgraded Codex scan replaces old session-total records with complete daily/model/project partitions. Old cumulative records without recoverable timing are retained in all-time totals but excluded from daily/weekly rankings. OTel checkpoints preserve the old baseline and add subsequent differences; they do not fabricate prior daily history. See ACCOUNTING.md.
 
-Both paths upload *your own* real Claude Code / OpenCode usage metadata — only do this against a
-server you control, and only once you're comfortable with what docs/PRIVACY.md says is and isn't
-collected.
+## Alternative Claude-only telemetry
 
-**Automatic (recommended):** Dashboard → Collector → "Generate setup snippet", then paste the
-result into either your shell profile (`~/.zshrc` etc. — works if Claude Code is launched from a
-terminal) or `~/.claude/settings.json`'s `"env"` key (more reliable if Claude Code is launched
-through a GUI app, since shell profiles aren't always sourced by GUI-launched processes). Then
-start a *new* Claude Code session — env vars only apply to processes started after they're set, so
-an already-running session won't pick them up retroactively. If you use the desktop app, fully quit
-and reopen it first.
+The alternative section generates a settings-merging terminal command for macOS/Linux. It backs up existing Claude settings, enables HTTP/JSON metrics with delta temporality, disables logs and traces, and sets a metrics-specific authorization header. Start a new Claude session after applying it. There is no historical backfill. Do not combine this with Claude transcript collection; the server prevents overlapping uploads from being counted.
 
-**Checking that it works:** the collector list (Dashboard → Collector) shows a "Last upload" note
-for each collector, e.g. `saw claude_code.session.count×1 → 0 usage event(s)`. Claude Code reports
-`session.count` as soon as a session starts, so within about a minute of starting a new session you
-should see the note appear even before any tokens are used; `claude_code.token.usage` follows once a
-request has been made. "Nothing received yet" means no export has reached the server at all — the
-new session didn't pick up the config (restart the app / open a new terminal), or the snippet's
-token was revoked.
+## Verification
 
-**Manual (advanced, required for OpenCode):**
-
-```bash
-# In the dashboard: Dashboard → Collector → "Advanced" → "Generate pairing code"
-npm run collector -- pair --server http://localhost:3000 --code <code-from-dashboard>
-npm run collector -- status     # see what it detected
-npm run collector -- run --once # collect once and upload
-```
-
-## 6. Deploying
-
-### Database
-
-1. Provision Postgres. On Vercel: Project → Storage → Create Database → Neon (free tier, no card
-   required) → Connect Project. This sets `DATABASE_URL` (and several `DATABASE_*` sibling vars
-   from Neon) in your Vercel project automatically.
-2. `apps/web/package.json`'s `build` script runs `prisma db push` automatically on every Vercel
-   build (guarded by Vercel's own `VERCEL=1` env var — see `scripts/db-push-on-vercel.mjs`), so the
-   schema stays in sync with no extra step. This is a pre-migrations convenience for this early
-   stage; switch to `prisma migrate deploy` before this matters for real user data.
-
-### Vercel
-
-1. Push this repo to GitHub.
-2. Import it into Vercel. Because it's an npm-workspaces monorepo, either set the project's **root
-   directory** to `apps/web` in the dashboard, or (what this project actually uses) keep the root
-   directory as `.` and set custom **Install/Build/Output** commands:
-   - Install: `npm install`
-   - Build: `npm run build --workspace apps/web`
-   - Output directory: `apps/web/.next`
-3. Add the database (see above), and set `AUTH_SECRET`, `AUTH_GITHUB_ID`/`AUTH_GITHUB_SECRET`,
-   `EMAIL_SERVER`/`EMAIL_FROM`, `COLLECTOR_TOKEN_SECRET` in the Vercel project's environment
-   variables.
-4. Create a GitHub OAuth app at <https://github.com/settings/developers> with callback URL
-   `https://<your-vercel-domain>/api/auth/callback/github`, and set its client ID/secret as
-   `AUTH_GITHUB_ID`/`AUTH_GITHUB_SECRET` above.
-5. Deploy. Re-run `npm run db:seed` locally against the production `DATABASE_URL` only if you want
-   the demo leaderboard rows there too — most real deployments should skip seeding.
-
-Nothing in this repository deploys itself — see docs/PRIVACY.md and the top of the build brief for
-why (no telemetry is enabled, no real usage is uploaded, and no deployment happens without a human
-explicitly running the steps above).
-
-## What's implemented vs. deferred in this release
-
-- ✅ **Live in production**: real Postgres (Neon), real GitHub OAuth, deployed at
-  token-maxxer-ten.vercel.app with auto-deploy from `main` — not just a local demo.
-- ✅ GitHub + email sign-in (Auth.js v5); email has no real SMTP provider configured, so magic
-  links print to server logs rather than send — everything else works.
-- ✅ Automatic (OTel) tracking: paste-once setup, no process to run. End-to-end verified against
-  production with real requests — bucket merging, idempotent dedup, cumulative-counter upsert, and
-  cross-session summing all confirmed correct, not just unit-tested.
-- ✅ CLI collector (advanced path): pairing, revocation, idempotent ingestion, still required for
-  OpenCode or more precise (path-level) project attribution.
-- ✅ Automatic project detection (git root → workspace folder for the CLI path; repo name via
-  `vcs.*` attributes for the OTel path), rename/hide/merge/link, publish preview and explicit
-  publish toggle.
-- ✅ Weekly/daily/all-time leaderboard, public profiles, documented accounting rule, graceful
-  degradation (not a crash) if the database is ever unreachable.
-- ✅ Claude Code connectors: OTel (recommended) and local JSONL transcripts (advanced/manual).
-- ⚠️ OpenCode connector: implemented against the public CLI surface only, from documentation
-  review — **needs validation against a real `opencode` install** before you rely on it (see
-  docs/SUPPORT_MATRIX.md).
-- ❌ Provider-verified evidence level, Zed/other connectors, direct provider API integration —
-  deferred, see the build brief §14.
+`npm run check` runs lint, collector type checking, isolated PostgreSQL regression tests, telemetry parser tests and a production build. CI is configured for macOS, Linux and Windows. Native Windows/Linux scheduler execution must also be checked on those platforms; unit-tested generated commands alone do not establish end-to-end support there.
