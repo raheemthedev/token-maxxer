@@ -40,13 +40,22 @@ The saved Vercel CLI credential returned HTTP 403. Deployment succeeded through 
 The requested publishing model now shows all non-hidden project names for published accounts. Private
 projects have no hyperlinks or descriptions in public responses; public projects can use owner links
 or automatically discovered public GitHub repository URLs. Hidden and merged projects stay excluded.
-The leaderboard row no longer overlays a profile link on private project text, and names wrap instead
-of being truncated away. Profile previews, sign-in copy and privacy documentation describe this model.
+The leaderboard row no longer overlays a profile link on private project text. Folder projects are
+prioritized; four leading names appear with a native expandable list for the rest. Profile previews, sign-in copy and privacy documentation describe this model.
 
 Anonymous repository discovery rejects credential-bearing remotes, custom hosts, non-public responses,
 redirects and mismatched repositories. Cached lookups are bounded; failures preserve usage uploads.
 Owner links take precedence, and discovery updates on replay never count tokens twice. New regression
 tests cover those cases together with public/private names, unpublished accounts, hide and merge.
 
-Validation: `npm run check` passed lint, collector TypeScript, all 29 regression tests, OTLP checks
+Validation: `npm run check` passed lint, collector TypeScript, all 30 regression tests, OTLP checks
 and the Next.js production build. Production verification follows deployment.
+
+Production commit `dead534` deployed successfully. The anonymous live leaderboard displayed private
+project names as plain text, and live health reported collector 0.2.1/accounting 2 ready. The live
+installer upgraded the owner's existing collector without re-pairing; its metadata replay reported
+0 new records and 2,906 already seen. Six repository origins were checked anonymously, three were
+confirmed public, and unverified remote URLs were not stored in the discovery cache.
+
+The live check revealed oversized rows for an account with hundreds of detected folders; the follow-up
+adds four leading names plus a native expandable list, and a rendered-markup regression test.

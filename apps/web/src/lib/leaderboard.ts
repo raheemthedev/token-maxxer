@@ -40,7 +40,7 @@ export async function getLeaderboard(period: LeaderboardPeriod): Promise<Leaderb
           image: true,
           projects: {
             where: { hidden: false, mergedIntoId: null },
-            select: { displayName: true, detectedNameLocal: true, visibility: true, linkUrl: true, publicRepositoryUrl: true },
+            select: { id: true, detectionMethod: true, displayName: true, detectedNameLocal: true, visibility: true, linkUrl: true, publicRepositoryUrl: true },
           },
           usageEvents: {
             where: { observedAt: { gte: start, lte: end },
@@ -50,6 +50,7 @@ export async function getLeaderboard(period: LeaderboardPeriod): Promise<Leaderb
               ] }),
             },
             select: {
+              projectId: true,
               connectorVersion: true,
               source: true,
               inputTokens: true,
@@ -76,6 +77,7 @@ export async function getLeaderboard(period: LeaderboardPeriod): Promise<Leaderb
     .map((p) => {
       let total = 0;
       let unknown = false;
+      const projectTokens = new Map<string, number>();
       for (const event of p.user.usageEvents) {
         if (localUsers.has(p.userId) && event.source === "claude_code" && event.connectorVersion?.startsWith("otel-")) continue;
         const buckets: TokenBuckets = {
@@ -86,7 +88,9 @@ export async function getLeaderboard(period: LeaderboardPeriod): Promise<Leaderb
           reasoning: event.reasoningTokens,
           reasoningIncludedInOutput: event.reasoningIncludedInOutput,
         };
-        total += computeHeadlineTotal(buckets);
+        const tokens = computeHeadlineTotal(buckets);
+        total += tokens;
+        if (event.projectId) projectTokens.set(event.projectId, (projectTokens.get(event.projectId) ?? 0) + tokens);
         if (hasUnknownCategories(buckets)) unknown = true;
       }
       return {
@@ -97,7 +101,12 @@ export async function getLeaderboard(period: LeaderboardPeriod): Promise<Leaderb
         image: p.user.image,
         totalTokens: total,
         hasUnknownCategories: unknown,
-        projects: p.user.projects.map(publicProjectSummary),
+        projects: p.user.projects.sort((a, b) => {
+          const priority = (method: string) => method === "git_root" ? 0 : method === "workspace_folder" ? 1 : 2;
+          return priority(a.detectionMethod) - priority(b.detectionMethod) ||
+            (projectTokens.get(b.id) ?? 0) - (projectTokens.get(a.id) ?? 0) ||
+            (a.displayName || a.detectedNameLocal).localeCompare(b.displayName || b.detectedNameLocal);
+        }).map(publicProjectSummary),
       };
     })
     .filter((row) => row.totalTokens > 0)

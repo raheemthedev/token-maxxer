@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
 import { ShareBar } from "@/components/ui/Bars";
+import { LeaderboardProjects } from "@/components/LeaderboardProjects";
 import { EvidenceBadge } from "@/components/EvidenceBadge";
 import { Segmented } from "@/components/ui/Segmented";
 
@@ -118,27 +119,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
                     <EvidenceBadge level="locally_reported" />
                   </span>
                 </div>
-                <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-sm text-foreground-muted">
-                  {row.projects.length === 0
-                    ? "No projects yet"
-                    : row.projects.map((p, i) => (
-                        <span key={`${p.displayName}:${i}`}>
-                          {i > 0 && " · "}
-                          {p.linkUrl ? (
-                            <a
-                              href={p.linkUrl}
-                              target="_blank"
-                              rel="noopener noreferrer nofollow"
-                              className="relative z-10 underline decoration-border-soft underline-offset-2 hover:decoration-accent"
-                            >
-                              {p.displayName} ↗
-                            </a>
-                          ) : (
-                            p.displayName
-                          )}
-                        </span>
-                      ))}
-                </div>
+                <LeaderboardProjects projects={row.projects} />
                 <ShareBar value={row.totalTokens} max={max} className="mt-3" />
               </div>
 
