@@ -1,3 +1,4 @@
+import { publicProjectSummary } from "./publicProjects";
 import { canonicalUsage } from "./canonicalUsage";
 import { computeHeadlineTotal, hasUnknownCategories, type TokenBuckets } from "@token-maxxer/shared";
 import { prisma } from "./prisma";
@@ -42,7 +43,7 @@ async function getProfileData(handle: string, ownerId: string | null): Promise<P
     include: {
       publishSettings: true,
       projects: {
-        where: { visibility: "public", hidden: false, mergedIntoId: null },
+        where: { hidden: false, mergedIntoId: null },
       },
       usageEvents: {
         select: {
@@ -118,13 +119,11 @@ async function getProfileData(handle: string, ownerId: string | null): Promise<P
       .filter(({ tokens }) => tokens > 0)
       .sort((a, b) => b.tokens - a.tokens),
     projects: user.projects
-      .filter((p): p is typeof p & { displayName: string } => Boolean(p.displayName))
       .map((p) => ({
         id: p.opaqueId,
-        displayName: p.displayName,
-        description: p.description,
-        linkUrl: p.linkUrl,
-        linkLabel: p.linkLabel,
+        ...publicProjectSummary(p),
+        description: p.visibility === "public" ? p.description : null,
+        linkLabel: p.visibility === "public" ? p.linkLabel ?? "repository" : null,
         tokens: tokensByProjectId.get(p.id) ?? 0,
       })),
   };

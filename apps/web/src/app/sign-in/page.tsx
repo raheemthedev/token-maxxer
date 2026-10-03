@@ -20,7 +20,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
         </h2>
         <ul className="mt-6 space-y-4 text-sm text-foreground-muted">
           {[
-            ["Private by default", "Nothing is public until you approve it, project by project."],
+            ["Private by default", "Your account starts unpublished. You choose when to join the leaderboard."],
             ["Metadata only", "Token counts and model names. Never prompts, code, or file paths."],
             ["Identity ≠ access", "Signing in never grants access to your AI accounts or repositories."],
           ].map(([t, b]) => (

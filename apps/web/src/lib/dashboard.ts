@@ -107,7 +107,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
       displayName: p.displayName,
       visibility: p.visibility,
       hidden: p.hidden,
-      linkUrl: p.linkUrl,
+      linkUrl: p.linkUrl ?? p.publicRepositoryUrl,
       linkLabel: p.linkLabel,
       description: p.description,
       detectionMethod: p.detectionMethod,

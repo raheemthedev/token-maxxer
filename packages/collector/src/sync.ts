@@ -5,6 +5,7 @@ import { computeHeadlineTotal, type NormalizedUsageEvent } from "@token-maxxer/s
 import { CONFIG_DIR, loadConfig } from "./config.js";
 import { connectors } from "./diagnostics.js";
 import { ingestBatch } from "./api.js";
+import { discoverPublicProjectLinks } from "./publicProjectLinks.js";
 import { resetProjectCache } from "./project.js";
 
 function read<T>(name: string, fallback: T): T {
@@ -58,6 +59,7 @@ export async function collectAndUpload() {
       }
     }
     events = dedupeEvents(events);
+    await discoverPublicProjectLinks(events);
     const acknowledged = read<Record<string, string>>("acknowledged.json", {});
     const pending = new Map(read<NormalizedUsageEvent[]>("pending.json", []).map(e => [identity(e), e]));
     for (const e of events) if (acknowledged[identity(e)] !== digest(e)) pending.set(identity(e), e);

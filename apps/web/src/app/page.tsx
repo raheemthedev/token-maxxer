@@ -51,7 +51,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
             </h1>
             <p className="mt-4 max-w-xl text-foreground-muted">
               Who&apos;s burning the most AI tokens while building — Claude Code, Codex and more — alongside the
-              projects they chose to show. Nothing is public until its owner says so.
+              projects they’re building. Published profiles show project names; only public projects link out.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
@@ -99,7 +99,6 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
               key={row.userId}
               className="relative flex items-center gap-4 px-5 py-5 transition-colors first:rounded-t-[1.75rem] last:rounded-b-[1.75rem] hover:bg-surface-muted/60"
             >
-              <Link href={`/u/${row.handle}`} className="absolute inset-0" aria-label={row.name ?? row.handle} />
 
               <span
                 className={`stat-number flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
@@ -112,18 +111,18 @@ export default async function LeaderboardPage({ searchParams }: { searchParams: 
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="font-medium">{row.name ?? `@${row.handle}`}</span>
+                  <Link href={`/u/${row.handle}`} className="font-medium hover:underline">{row.name ?? `@${row.handle}`}</Link>
                   <span className="text-sm text-foreground-muted">@{row.handle}</span>
                   {row.handle.startsWith("demo-") && <Badge tone="purple">Demo data</Badge>}
                   <span className="hidden sm:inline">
                     <EvidenceBadge level="locally_reported" />
                   </span>
                 </div>
-                <div className="mt-1 truncate text-sm text-foreground-muted">
+                <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-sm text-foreground-muted">
                   {row.projects.length === 0
-                    ? "No public projects"
+                    ? "No projects yet"
                     : row.projects.map((p, i) => (
-                        <span key={p.displayName}>
+                        <span key={`${p.displayName}:${i}`}>
                           {i > 0 && " · "}
                           {p.linkUrl ? (
                             <a

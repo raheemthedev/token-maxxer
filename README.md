@@ -10,7 +10,7 @@ Live: https://token-maxxer-ten.vercel.app
 2. Open **Connect tools**, generate the install command, and paste it into a terminal on your coding machine.
 3. The collector pairs, imports retained Claude Code / Codex / OpenCode usage, and installs background tracking every five minutes. Node.js 20+ is required; no repository clone or open terminal is needed.
 4. The page confirms **Receiving uploads** and shows each tool's coverage.
-5. Review **Profile preview**, approve project names/links, and explicitly publish. Everything starts private.
+5. Review **Profile preview** and publish your account. All non-hidden project names appear; private projects have no links. Make a project public to enable its link, or hide it to omit it entirely.
 
 macOS uses a launch agent, Linux uses the user's crontab (requires cron), and Windows uses a scheduled task. The collector queues metadata locally while offline and retries. Stop, pause, unpair and revoke controls are included.
 

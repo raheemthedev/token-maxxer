@@ -14,11 +14,11 @@ function toIngestEvent(event: NormalizedUsageEvent) {
   const rest = { source: event.source, sourceVersion: event.sourceVersion, connectorVersion: event.connectorVersion,
     provider: event.provider, model: event.model, sourceEventId: event.sourceEventId, replacesSourceEventId: event.replacesSourceEventId,
     eventType: event.eventType, observedAt: event.observedAt, periodStart: event.periodStart, periodEnd: event.periodEnd,
-    tokens: event.tokens, evidenceLevel: "locally_reported", projectDetectionMethod: event.projectDetectionMethod };
+    tokens: event.tokens, evidenceLevel: "locally_reported", projectDetectionMethod: event.projectDetectionMethod, publicRepositoryUrl: event.publicRepositoryUrl };
   return {
     ...rest,
     projectFingerprintHash: projectFingerprint,
-    // Hint is for the user's own dashboard only; truncate defensively even though it's already
+    // Only a basename is sent; published accounts may also show it on the leaderboard. It's already
     // just a folder basename, never a full path.
     projectHintRedacted: localProjectHint ? localProjectHint.slice(0, 64) : null,
   };

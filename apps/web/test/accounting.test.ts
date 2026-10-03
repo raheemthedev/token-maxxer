@@ -91,14 +91,50 @@ test("Pairing codes are one-use under concurrency and same-account repair reuses
   const repair = await pair(new Request("http://localhost/api/collector/pair", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${credential}` }, body: JSON.stringify({ pairingCode: secondCode, collectorName: "repaired" }) }));
   assert.equal(repair.status, 200); assert.equal((await repair.json()).collectorId, c.id);
 });
-test("Private preview excludes private project hints and public views require publishing", async () => {
+test("Private project names are shown only after account publishing, without links or descriptions", async () => {
   const { user, c } = await fixture();
   const fingerprint = "a".repeat(64);
   await persistUsageEvents(c.id, user.id, [event({ projectFingerprintHash: fingerprint, projectHintRedacted: "PRIVATE_CLIENT_NAME" })]);
   assert.equal(await getPublicProfile(user.handle!), null);
-  const preview = await getPrivateProfilePreview(user.id); assert.equal(preview?.projects.length, 0); assert.ok(!JSON.stringify(preview).includes("PRIVATE_CLIENT_NAME"));
+  const preview = await getPrivateProfilePreview(user.id); assert.equal(preview?.projects[0].displayName, "PRIVATE_CLIENT_NAME");
+  const project = await prisma.project.findFirstOrThrow({ where: { userId: user.id } });
+  await prisma.project.update({ where: { id: project.id }, data: { linkUrl: "https://example.com/private", publicRepositoryUrl: "https://github.com/owner/project", description: "PRIVATE_DESCRIPTION" } });
   await prisma.publishSettings.create({ data: { userId: user.id, isPublic: true } });
-  assert.equal((await getPublicProfile(user.handle!))?.totalTokens, 170);
+  const profile = await getPublicProfile(user.handle!);
+  assert.equal(profile?.totalTokens, 170);
+  assert.equal(profile?.projects[0].displayName, "PRIVATE_CLIENT_NAME");
+  assert.equal(profile?.projects[0].linkUrl, null);
+  assert.equal(profile?.projects[0].description, null);
+  const row = (await getLeaderboard("all_time")).find(r => r.userId === user.id)!;
+  assert.deepEqual(row.projects, [{ displayName: "PRIVATE_CLIENT_NAME", linkUrl: null }]);
+  assert.ok(!JSON.stringify(row).includes("https://"));
+});
+test("Public projects use owner links before discovered repositories; hidden and merged projects stay excluded", async () => {
+  const { user, c } = await fixture();
+  const fingerprint = "b".repeat(64);
+  const usage = event({ projectFingerprintHash: fingerprint, projectHintRedacted: "folder-name", publicRepositoryUrl: "https://github.com/owner/repository" });
+  await persistUsageEvents(c.id, user.id, [usage]);
+  await prisma.publishSettings.create({ data: { userId: user.id, isPublic: true } });
+  const project = await prisma.project.findFirstOrThrow({ where: { userId: user.id } });
+  await prisma.project.update({ where: { id: project.id }, data: { visibility: "public" } });
+  assert.deepEqual((await getLeaderboard("all_time")).find(r => r.userId === user.id)?.projects, [{ displayName: "folder-name", linkUrl: usage.publicRepositoryUrl }]);
+  await prisma.project.update({ where: { id: project.id }, data: { displayName: "My project", linkUrl: "https://my-project.example" } });
+  // The same usage can carry newly discovered metadata without adding any tokens.
+  await persistUsageEvents(c.id, user.id, [{ ...usage, publicRepositoryUrl: "https://github.com/owner/new-repository" }]);
+  assert.equal(await total(user.id), 170);
+  assert.deepEqual((await getLeaderboard("all_time")).find(r => r.userId === user.id)?.projects, [{ displayName: "My project", linkUrl: "https://my-project.example" }]);
+  await persistUsageEvents(c.id, user.id, [{ ...usage, publicRepositoryUrl: null }]);
+  assert.equal((await prisma.project.findUniqueOrThrow({ where: { id: project.id } })).publicRepositoryUrl, null);
+  assert.equal((await getPublicProfile(user.handle!))?.projects[0].linkUrl, "https://my-project.example");
+  await prisma.project.update({ where: { id: project.id }, data: { hidden: true } });
+  assert.equal((await getLeaderboard("all_time")).find(r => r.userId === user.id)?.projects.length, 0);
+  assert.equal((await getPublicProfile(user.handle!))?.projects.length, 0);
+  await prisma.project.update({ where: { id: project.id }, data: { hidden: false } });
+  await prisma.project.create({ data: { userId: user.id, fingerprintHash: "c".repeat(64), detectionMethod: "git_root", detectedNameLocal: "merged-source", mergedIntoId: project.id } });
+  assert.equal((await getLeaderboard("all_time")).find(r => r.userId === user.id)?.projects.length, 1);
+  await prisma.publishSettings.update({ where: { userId: user.id }, data: { isPublic: false } });
+  assert.equal((await getLeaderboard("all_time")).some(r => r.userId === user.id), false);
+  assert.equal(await getPublicProfile(user.handle!), null);
 });
 test("Legacy overlapping Claude methods are excluded consistently without destroying evidence", async () => {
   const { user, c } = await fixture();

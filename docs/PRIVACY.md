@@ -13,7 +13,9 @@
   explicitly skip content fields (see docs/SUPPORT_MATRIX.md).
 
 The owner’s private dashboard receives a redacted folder basename to help identify projects.
-It never receives a full path, and that hint never appears in public profiles or leaderboards.
+It never receives a full path. When the owner publishes their account, non-hidden project names
+(including those basenames) appear on the leaderboard and profile. Private projects have no hyperlinks
+and their descriptions and URLs are excluded from public responses. Hide a project to omit its name.
 
 ## Identity vs. access
 
@@ -42,16 +44,21 @@ shipped, is complete, or is owned by the person who linked it beyond their own a
 
 ## Publishing model
 
-Two independent switches, both off by default:
+Accounts start unpublished. `PublishSettings.isPublic` controls whether a user appears on the
+leaderboard or has a public profile. Once published, all non-hidden, non-merged project names appear.
+An owner-supplied `displayName` takes precedence over the redacted detected basename.
 
-1. `PublishSettings.isPublic` — whether the user appears on the leaderboard / has a public profile
-   at all.
-2. `Project.visibility` — per project, whether that specific project is shown publicly.
+`Project.visibility` controls outbound links and descriptions: private projects show names without
+links or descriptions; public projects can link to an owner-supplied URL or a discovered public GitHub
+repository. `Project.hidden` excludes a project entirely, in both states. Visibility never changes
+account totals, and discovering a link never publishes an account or makes a project public.
 
-A newly detected project is always private (`visibility: "private"`) regardless of the user's
-overall publish state. Nothing about a project becomes public until the user explicitly approves
-that project. Detected local folder names (`detectedNameLocal`) are never returned by any public
-API route or rendered on any public page — only the user-approved `displayName` is.
+The collector reads only the local Git origin metadata for detected repositories. It accepts standard
+GitHub remotes and checks `api.github.com/repos/{owner}/{repo}` **without authentication**, with redirects
+disabled. Only exact repository matches explicitly reported public are uploaded. Private repository
+URLs, embedded credentials, custom hosts and unverified links never reach Token Maxxer. Discovery is
+bounded, cached and optional; failures do not prevent usage uploads. Manually entered links always
+win over automatic discovery. No repository contents are fetched and GitHub OAuth scopes are unchanged.
 
 ## Data controls
 

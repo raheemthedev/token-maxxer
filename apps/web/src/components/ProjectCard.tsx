@@ -60,6 +60,7 @@ export function ProjectCard({
       <details className="mt-4">
       <summary className="cursor-pointer text-sm font-medium text-accent">Edit details</summary>
       <div className="mt-4 border-t border-border-soft pt-4">
+      <p className="mb-3 text-xs text-foreground-muted">On published profiles, private projects show their name without a link. Public projects can link out. Hide removes the project entirely.</p>
       <label className="mb-2 block text-sm">
         <span className="text-foreground-muted">Project name</span>
         <input
@@ -109,7 +110,7 @@ export function ProjectCard({
           onClick={() => patch({ ...fields(), visibility: project.visibility === "public" ? "private" : "public" })}
           className="rounded-full border border-border-soft px-3.5 py-1.5 text-sm font-medium transition-colors hover:bg-surface-muted disabled:opacity-50"
         >
-          {project.visibility === "public" ? "Make private" : "Publish"}
+          {project.visibility === "public" ? "Make private" : "Make public"}
         </button>
         <button
           disabled={saving}

@@ -9,7 +9,7 @@ export interface IngestableEvent {
   eventType: "incremental" | "cumulative_snapshot";
   observedAt: string; periodStart?: string | null; periodEnd?: string | null;
   tokens: TokenBuckets;
-  projectFingerprintHash?: string | null; projectDetectionMethod?: ProjectDetectionMethod | null; projectHintRedacted?: string | null;
+  projectFingerprintHash?: string | null; projectDetectionMethod?: ProjectDetectionMethod | null; projectHintRedacted?: string | null; publicRepositoryUrl?: string | null;
 }
 export interface IngestResult { accepted: number; duplicates: number; unassignedProjects: number; skippedSources?: string[] }
 const columns = { input: "inputTokens", output: "outputTokens", cacheRead: "cacheReadTokens", cacheWrite: "cacheWriteTokens", reasoning: "reasoningTokens" } as const;
@@ -47,6 +47,14 @@ export async function persistUsageEvents(collectorId: string, userId: string, in
       return { userId, fingerprintHash, detectionMethod: e.projectDetectionMethod ?? "workspace_folder",
         detectedNameLocal: e.projectHintRedacted ?? "Unnamed project", visibility: "private" };
     }), skipDuplicates: true });
+    // Metadata is updated even when the accompanying usage is a duplicate. Discovery must not
+    // count tokens again, overwrite an owner-supplied link or change project visibility.
+    for (const fingerprintHash of fingerprints) {
+      const publicRepositoryUrl = events.find(e => e.projectFingerprintHash === fingerprintHash && e.publicRepositoryUrl !== undefined)?.publicRepositoryUrl;
+      if (publicRepositoryUrl !== undefined) await tx.project.updateMany({
+        where: { userId, fingerprintHash, mergedIntoId: null }, data: { publicRepositoryUrl },
+      });
+    }
     const projects = await tx.project.findMany({ where: { userId } });
     const byProjectId = new Map(projects.map(p => [p.id, p]));
     const projectIds = new Map(projects.map(p => {

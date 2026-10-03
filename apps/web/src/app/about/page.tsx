@@ -71,7 +71,7 @@ export default function AboutPage() {
           <p>
             <strong>Project detected</strong> vs. <strong>project linked</strong> — a detected
             project just means AI activity was associated with a local workspace; a linked project
-            additionally has a builder-supplied URL. Neither implies the project shipped or is
+            additionally has an owner-supplied URL or an automatically verified public GitHub repository. Neither implies the project shipped or is
             complete.
           </p>
         </Section>
@@ -81,8 +81,10 @@ export default function AboutPage() {
             Signing in identifies you here. It never grants this app access to your Claude,
             ChatGPT, or OpenCode accounts. No prompts, generated content, source code, full file
             paths, or credentials are ever uploaded — connectors read only usage metadata (token
-            counts, model, timestamps). Nothing is public until you explicitly publish it, project
-            by project and as a whole.
+            counts, model, timestamps). Your account starts unpublished. Once published, project names
+            appear on your profile and leaderboard. Private projects have no links or descriptions.
+            Public projects can link out; hidden projects are omitted entirely. Automatic repository
+            discovery uses anonymous public GitHub metadata and never uploads private repository URLs.
           </p>
         </Section>
 

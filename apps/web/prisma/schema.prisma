@@ -153,6 +153,7 @@ model Project {
   displayName       String?
   visibility        String   @default("private") // private | public
   hidden            Boolean  @default(false)
+  publicRepositoryUrl String?
   linkUrl           String?
   linkLabel         String? // repository | live | demo | release | video
   description       String?

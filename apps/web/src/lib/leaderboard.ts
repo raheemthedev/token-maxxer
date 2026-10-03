@@ -1,4 +1,5 @@
 import { computeHeadlineTotal, hasUnknownCategories, type TokenBuckets } from "@token-maxxer/shared";
+import { publicProjectSummary } from "./publicProjects";
 import { prisma } from "./prisma";
 import { getPeriodBounds, type LeaderboardPeriod } from "./period";
 
@@ -38,8 +39,8 @@ export async function getLeaderboard(period: LeaderboardPeriod): Promise<Leaderb
           name: true,
           image: true,
           projects: {
-            where: { visibility: "public", hidden: false, mergedIntoId: null },
-            select: { displayName: true, linkUrl: true },
+            where: { hidden: false, mergedIntoId: null },
+            select: { displayName: true, detectedNameLocal: true, visibility: true, linkUrl: true, publicRepositoryUrl: true },
           },
           usageEvents: {
             where: { observedAt: { gte: start, lte: end },
@@ -96,9 +97,7 @@ export async function getLeaderboard(period: LeaderboardPeriod): Promise<Leaderb
         image: p.user.image,
         totalTokens: total,
         hasUnknownCategories: unknown,
-        projects: p.user.projects
-          .filter((proj): proj is { displayName: string; linkUrl: string | null } => Boolean(proj.displayName))
-          .map((proj) => ({ displayName: proj.displayName, linkUrl: proj.linkUrl })),
+        projects: p.user.projects.map(publicProjectSummary),
       };
     })
     .filter((row) => row.totalTokens > 0)

@@ -17,7 +17,7 @@ export type NormalizedIngestEvent = Omit<
   "projectFingerprint" | "localProjectHint"
 > & {
   projectFingerprintHash: string | null;
-  /** Local-only display hint, truncated/never a full path, shown ONLY back to the owning user. */
+  /** Redacted basename, never a full path. Published accounts show project names without private links. */
   projectHintRedacted: string | null;
 };
 

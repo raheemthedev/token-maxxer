@@ -69,10 +69,12 @@ export interface NormalizedUsageEvent {
   tokens: TokenBuckets;
   /**
    * Salted, one-way project fingerprint. This hash crosses the wire; the local path does not.
-   * The server creates a private project until its owner approves a public display name.
+   * The server creates a private project. Published accounts show its basename without a link.
    */
   projectFingerprint: string | null;
   projectDetectionMethod: ProjectDetectionMethod | null;
+  /** A GitHub repository URL verified public without credentials. Private remotes never leave the machine. */
+  publicRepositoryUrl?: string | null;
   /** Local folder hint; the upload boundary sends only a redacted basename to the private dashboard. */
   localProjectHint: string | null;
   evidenceLevel: EvidenceLevel;

@@ -5,7 +5,7 @@ import { hashProjectFingerprint, type ProjectDetectionMethod } from "@token-maxx
 export interface DetectedProject {
   fingerprintHash: string;
   detectionMethod: ProjectDetectionMethod;
-  /** Local display hint only (e.g. folder name) — never uploaded. */
+  /** Folder basename only; full paths never leave the machine. */
   localHint: string;
 }
 
@@ -19,6 +19,7 @@ export function detectProject(cwd: string, projectSalt: string): DetectedProject
   const gitRoot = gitRoots.has(cwd) ? gitRoots.get(cwd)! : tryGitRoot(cwd);
   gitRoots.set(cwd, gitRoot);
   if (gitRoot) {
+    projectRoots.set(hashProjectFingerprint(projectSalt, gitRoot), gitRoot);
     return {
       fingerprintHash: hashProjectFingerprint(projectSalt, gitRoot),
       detectionMethod: "git_root",
@@ -34,7 +35,8 @@ export function detectProject(cwd: string, projectSalt: string): DetectedProject
 
 // Cleared once per scan: thousands of messages in one folder need just one git invocation.
 const gitRoots = new Map<string, string | null>();
-export function resetProjectCache() { gitRoots.clear(); }
+export const projectRoots = new Map<string, string>();
+export function resetProjectCache() { gitRoots.clear(); projectRoots.clear(); }
 
 function tryGitRoot(cwd: string): string | null {
   try {

@@ -34,3 +34,19 @@ Remaining verification:
 - Compressed Codex `.jsonl.zst` history is explicitly reported as unsupported. No usage is estimated for missing or unreadable history.
 
 The saved Vercel CLI credential returned HTTP 403. Deployment succeeded through the existing GitHub integration; live health and authenticated collector responses verify readiness without exposing production environment values.
+
+## Project listing update — 2026-10-03
+
+The requested publishing model now shows all non-hidden project names for published accounts. Private
+projects have no hyperlinks or descriptions in public responses; public projects can use owner links
+or automatically discovered public GitHub repository URLs. Hidden and merged projects stay excluded.
+The leaderboard row no longer overlays a profile link on private project text, and names wrap instead
+of being truncated away. Profile previews, sign-in copy and privacy documentation describe this model.
+
+Anonymous repository discovery rejects credential-bearing remotes, custom hosts, non-public responses,
+redirects and mismatched repositories. Cached lookups are bounded; failures preserve usage uploads.
+Owner links take precedence, and discovery updates on replay never count tokens twice. New regression
+tests cover those cases together with public/private names, unpublished accounts, hide and merge.
+
+Validation: `npm run check` passed lint, collector TypeScript, all 29 regression tests, OTLP checks
+and the Next.js production build. Production verification follows deployment.

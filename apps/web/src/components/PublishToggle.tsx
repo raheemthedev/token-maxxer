@@ -25,7 +25,7 @@ export function PublishToggle({ isPublic, handle }: { isPublic: boolean; handle:
         <h2 className="font-medium">Public leaderboard visibility</h2>
         <p className="mt-0.5 text-sm text-foreground-muted">
           {isPublic
-            ? "You're on the public leaderboard. Individual projects still need their own visibility turned on."
+            ? "You're on the public leaderboard. Project names are shown; only public projects link out. Hide a project to remove it."
             : "You're private. Nothing about you appears on the leaderboard or has a public profile until you publish."}
         </p>
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}

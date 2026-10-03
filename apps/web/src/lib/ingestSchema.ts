@@ -11,6 +11,7 @@ export const eventSchema = z.object({
   tokens: z.object({ input: count, output: count, cacheRead: count, cacheWrite: count, reasoning: count, reasoningIncludedInOutput: z.boolean() }),
   projectFingerprintHash: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional(),
   projectDetectionMethod: z.enum(["session_metadata", "git_root", "workspace_folder"]).nullable().optional(),
+  publicRepositoryUrl: z.string().regex(/^https:\/\/github\.com\/[A-Za-z0-9-]+\/[A-Za-z0-9_.-]+$/).max(500).nullable().optional(),
   projectHintRedacted: z.string().max(64).refine(s => !/[\\/\r\n]/.test(s), "Project hint must be a folder name, not a path.").nullable().optional(),
   evidenceLevel: z.enum(["locally_reported", "provider_verified"]).optional(),
 }).superRefine((e, ctx) => {

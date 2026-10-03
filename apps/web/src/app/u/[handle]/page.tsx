@@ -168,7 +168,7 @@ export default async function ProfilePage({ params, searchParams }: { params: Pr
       <section>
         <h2 className="eyebrow mb-3">Projects</h2>
         {profile.projects.length === 0 ? (
-          <Card className="text-sm text-foreground-muted">No public projects yet — detected projects stay private until their owner approves them.</Card>
+          <Card className="text-sm text-foreground-muted">No projects yet. Hidden projects are excluded.</Card>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {profile.projects.map((p) => (

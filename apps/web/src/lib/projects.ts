@@ -17,8 +17,8 @@ export async function resolveMergeChain(projectId: string): Promise<string> {
 
 /**
  * Finds or creates the project a fingerprint hash belongs to for this user, following any merge
- * redirect. New projects are always created private/unhidden — nothing becomes visible until the
- * user explicitly approves it (see docs/PRIVACY.md).
+ * redirect. New projects are always created private/unhidden — names become visible when the
+ * account is published; private projects show names without links (see docs/PRIVACY.md).
  */
 export async function resolveOrCreateProject(
   userId: string,

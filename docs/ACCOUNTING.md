@@ -30,7 +30,7 @@ Claude transcript and telemetry paths are alternatives. Ingestion preserves the 
 
 ## Privacy, attribution and validation
 
-Only an explicit metadata allowlist crosses the wire. Prompt/content fields, full paths, raw logs and credentials are excluded. Project fingerprints are salted hashes; a truncated folder hint is visible only to the owner. New projects are private, and only user-approved names/links enter public views. Merges redirect future ingestion while preserving the aggregate sum.
+Only an explicit metadata allowlist crosses the wire. Prompt/content fields, full paths, raw logs and credentials are excluded. Project fingerprints are salted hashes; published accounts show redacted project basenames or owner-edited names. Private projects have no public links or descriptions; hidden projects are omitted. Public projects can use owner-added links or anonymously verified public GitHub repository URLs. Merges redirect future ingestion while preserving the aggregate sum.
 
 The API rejects negative/fractional/overflowing counts, invalid or future timestamps, malformed periods and full-path project hints. It always stores evidence as `locally_reported` regardless of the client's claim. Revocation and ownership are checked again inside the ingestion transaction.
 

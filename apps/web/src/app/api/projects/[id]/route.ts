@@ -32,10 +32,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
     const project = await tx.project.findUnique({ where: { id } });
     if (!project || project.userId !== userId) return NextResponse.json({ error: "Project not found." }, { status: 404 });
-    const nextDisplayName = patch.displayName !== undefined ? patch.displayName : project.displayName;
-    if ((patch.visibility ?? project.visibility) === "public" && !nextDisplayName) {
-      return NextResponse.json({ error: "Set a display name before making a project public." }, { status: 400 });
-    }
     if (patch.linkUrl && !/^https?:\/\//i.test(patch.linkUrl)) {
       return NextResponse.json({ error: "Links must start with http:// or https://." }, { status: 400 });
     }
