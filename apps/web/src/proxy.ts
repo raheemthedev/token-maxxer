@@ -5,8 +5,11 @@ import { NextResponse, type NextRequest } from "next/server";
 export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const accountRoute = ["/sign-in", "/dashboard", "/api/auth"].some(prefix => path === prefix || path.startsWith(`${prefix}/`));
-  if (!accountRoute || !process.env.AUTH_URL) return NextResponse.next();
-  const canonical = new URL(process.env.AUTH_URL);
+  // The existing GitHub OAuth app is registered on this production origin. Vercel's
+  // deployment currently has no AUTH_URL, so retain that callback host for aliases.
+  const authOrigin = process.env.AUTH_URL || (process.env.VERCEL_ENV === "production" ? "https://token-maxxer-ten.vercel.app" : undefined);
+  if (!accountRoute || !authOrigin) return NextResponse.next();
+  const canonical = new URL(authOrigin);
   if (canonical.host === request.nextUrl.host) return NextResponse.next();
   return NextResponse.redirect(new URL(`${path}${request.nextUrl.search}`, canonical.origin));
 }
