@@ -10,7 +10,7 @@ test("Large project lists expand without making private names clickable", () => 
     { displayName: "Public project", linkUrl: "https://example.com" },
     ...Array.from({ length: 5 }, (_, i) => ({ displayName: `Folder ${i}`, linkUrl: null })),
   ] }));
-  assert.ok(html.includes("<span>Private project</span>"));
+  assert.match(html, /<span[^>]*>Private project<\/span>/);
   assert.ok(html.includes('href="https://example.com"'));
   assert.ok(html.includes("<summary"));
   assert.ok(html.includes("3 more projects"));
