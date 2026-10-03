@@ -39,7 +39,7 @@ export async function getLeaderboard(period: LeaderboardPeriod): Promise<Leaderb
           name: true,
           image: true,
           projects: {
-            where: { hidden: false, mergedIntoId: null },
+            where: { hidden: false, mergedIntoId: null, folderConfirmed: true },
             select: { id: true, detectionMethod: true, displayName: true, detectedNameLocal: true, visibility: true, linkUrl: true, publicRepositoryUrl: true },
           },
           usageEvents: {

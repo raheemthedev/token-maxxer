@@ -13,7 +13,7 @@ export default async function CollectorPage() {
   let collectors;
   try {
     collectors = await prisma.collector.findMany({ where: { userId: session.user.id }, orderBy: { createdAt: "desc" },
-      select: { id: true, name: true, kind: true, status: true, createdAt: true, lastSeenAt: true, lastIngestSummary: true, connectorStatuses: true } });
+      select: { id: true, name: true, kind: true, clientVersion: true, status: true, createdAt: true, lastSeenAt: true, lastIngestSummary: true, connectorStatuses: true } });
   } catch { return <DatabaseUnavailableNotice />; }
   const hdrs = await headers();
   const serverUrl = process.env.AUTH_URL || `${hdrs.get("x-forwarded-proto") ?? "http"}://${hdrs.get("host") ?? "localhost:3000"}`;

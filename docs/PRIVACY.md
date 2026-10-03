@@ -13,7 +13,7 @@
   explicitly skip content fields (see docs/SUPPORT_MATRIX.md).
 
 The owner’s private dashboard receives a redacted folder basename to help identify projects.
-It never receives a full path. When the owner publishes their account, non-hidden project names
+It never receives a full path. When the owner publishes their account, non-hidden folder project names
 (including those basenames) appear on the leaderboard and profile. Private projects have no hyperlinks
 and their descriptions and URLs are excluded from public responses. Hide a project to omit its name.
 
@@ -45,7 +45,7 @@ shipped, is complete, or is owned by the person who linked it beyond their own a
 ## Publishing model
 
 Accounts start unpublished. `PublishSettings.isPublic` controls whether a user appears on the
-leaderboard or has a public profile. Once published, all non-hidden, non-merged project names appear.
+leaderboard or has a public profile. Once published, all confirmed, non-hidden, non-merged folder project names appear.
 An owner-supplied `displayName` takes precedence over the redacted detected basename.
 
 `Project.visibility` controls outbound links and descriptions: private projects show names without
@@ -74,3 +74,16 @@ The private dashboard (`/dashboard`) provides, at minimum:
 
 Collector diagnostics (status, last-seen time, detected tools, error messages) intentionally
 never include prompt/response content or full paths — see `packages/collector/src/diagnostics.ts`.
+
+## Folder projects and chats
+
+A project must have confirmed local folder evidence. Codex desktop uses saved folder projects and
+thread membership; projectless chats are excluded even when their session has a working directory.
+Claude Code and OpenCode share the same filesystem checks: home/root directories, missing paths,
+agent storage and temporary chat output are not projects. Actual repositories and explicitly saved
+folders can reside in temporary locations. Chat token usage remains part of account totals, with no
+project attribution. Existing unconfirmed project rows are retained for history but excluded from
+the dashboard, profile and leaderboard until a current collector confirms them.
+
+The collector keeps historical Codex event identities stable when folder attribution changes, so
+replaying history cleans up project assignments without counting tokens twice.

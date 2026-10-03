@@ -9,7 +9,7 @@ export interface IngestableEvent {
   eventType: "incremental" | "cumulative_snapshot";
   observedAt: string; periodStart?: string | null; periodEnd?: string | null;
   tokens: TokenBuckets;
-  projectFingerprintHash?: string | null; projectDetectionMethod?: ProjectDetectionMethod | null; projectHintRedacted?: string | null; publicRepositoryUrl?: string | null;
+  projectFingerprintHash?: string | null; projectDetectionMethod?: ProjectDetectionMethod | null; projectHintRedacted?: string | null; publicRepositoryUrl?: string | null; projectFolderConfirmed?: boolean;
 }
 export interface IngestResult { accepted: number; duplicates: number; unassignedProjects: number; skippedSources?: string[] }
 const columns = { input: "inputTokens", output: "outputTokens", cacheRead: "cacheReadTokens", cacheWrite: "cacheWriteTokens", reasoning: "reasoningTokens" } as const;
@@ -45,11 +45,13 @@ export async function persistUsageEvents(collectorId: string, userId: string, in
     await tx.project.createMany({ data: fingerprints.map(fingerprintHash => {
       const e = events.find(e => e.projectFingerprintHash === fingerprintHash)!;
       return { userId, fingerprintHash, detectionMethod: e.projectDetectionMethod ?? "workspace_folder",
-        detectedNameLocal: e.projectHintRedacted ?? "Unnamed project", visibility: "private" };
+        detectedNameLocal: e.projectHintRedacted ?? "Unnamed project", folderConfirmed: e.projectFolderConfirmed ?? e.projectDetectionMethod === "git_root", visibility: "private" };
     }), skipDuplicates: true });
     // Metadata is updated even when the accompanying usage is a duplicate. Discovery must not
     // count tokens again, overwrite an owner-supplied link or change project visibility.
     for (const fingerprintHash of fingerprints) {
+      const folderEvent = events.find(e => e.projectFingerprintHash === fingerprintHash && e.projectFolderConfirmed !== undefined);
+      if (folderEvent) await tx.project.updateMany({ where: { userId, fingerprintHash }, data: { folderConfirmed: folderEvent.projectFolderConfirmed } });
       const publicRepositoryUrl = events.find(e => e.projectFingerprintHash === fingerprintHash && e.publicRepositoryUrl !== undefined)?.publicRepositoryUrl;
       if (publicRepositoryUrl !== undefined) await tx.project.updateMany({
         where: { userId, fingerprintHash, mergedIntoId: null }, data: { publicRepositoryUrl },

@@ -150,9 +150,9 @@ export function parseTranscriptLine(line: string, projectSalt: string): Normaliz
       reasoning: null,
       reasoningIncludedInOutput: true,
     },
-    projectFingerprint: project?.fingerprintHash ?? null,
-    projectDetectionMethod: project?.detectionMethod ?? null,
-    localProjectHint: project?.localHint ?? null,
+    projectFingerprint: project?.folderConfirmed ? project.fingerprintHash : null,
+    projectDetectionMethod: project?.folderConfirmed ? project.detectionMethod : null,
+    localProjectHint: project?.folderConfirmed ? project.localHint : null, projectFolderConfirmed: project?.folderConfirmed ?? false,
     evidenceLevel: "locally_reported",
   };
 }

@@ -20,7 +20,7 @@ test("Offline uploads survive restart; successful retries deduplicate and idle c
   connectors.push({ source: "codex", displayName: "broken-tool", detect: async () => { throw new Error("Private local details"); }, collect: async () => [] });
   let offline = true; const batches: { events: unknown[] }[] = [];
   const server = createServer(async (req, res) => {
-    if (req.url === "/api/health") { res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify({ ready: true, accountingVersion: 2 })); return; }
+    if (req.url === "/api/health") { res.writeHead(200, { "content-type": "application/json" }); res.end(JSON.stringify({ ready: true, accountingVersion: 2, projectDetectionVersion: 2 })); return; }
     assert.equal(req.headers.authorization, "Bearer test-token");
     const chunks = []; for await (const chunk of req) chunks.push(chunk);
     const body = JSON.parse(Buffer.concat(chunks).toString());

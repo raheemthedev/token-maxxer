@@ -59,3 +59,31 @@ confirmed public, and unverified remote URLs were not stored in the discovery ca
 
 The live check revealed oversized rows for an account with hundreds of detected folders; the follow-up
 adds four leading names plus a native expandable list, and a rendered-markup regression test.
+
+## Folder-only projects and simpler controls — 2026-10-03
+
+- Codex desktop reads local saved project roots and thread membership; projectless chats do not
+  create projects. Claude Code and OpenCode use the same folder validation policy.
+- Confirmed folders are required in dashboard, leaderboard and profile queries. Home directories,
+  agent storage, nonexistent paths and temporary chat output are excluded.
+- Historical event IDs are preserved during attribution cleanup. Chat usage remains in aggregate
+  totals; duplicate replay can detach a chat from an old project without altering counts.
+- Project management uses compact rows, one-click public/private switches, search and sorting.
+  Existing healthy connections show a simple connected state and an optional additional-machine setup.
+- New tests cover folder evidence across all connectors, desktop projectless chats, attribution identity
+  and server-side cleanup with unchanged totals. `npm run check` passed all 32 tests and the build.
+- `gettokenmaxxer.vercel.app` was checked and returned unassigned (404). A production alias is requested
+  through Vercel's documented Git configuration; actual assignment is verified after deployment.
+
+The real-history scan returned the five saved Codex folders shown in the owner's screenshot and
+zero new event identities across all three connectors. Other genuine folder activity from Claude
+Code/OpenCode remains listed. The local browser test used an existing authenticated real-data preview:
+a fresh dashboard-issued code paired a separate collector and uploaded real history, receiving status
+appeared, and code reuse returned 400. Search, token/name sorting, one-click visibility, link editing
+and the linked profile preview were exercised; project privacy/link settings were restored. A narrow
+viewport had no horizontal overflow. The temporary local collector's background job was stopped and
+its credential revoked while retaining uploaded usage.
+
+Collector version is reported on every heartbeat. Existing installations get a single-command update
+path instead of silently losing folder projects. Current healthy installations show a connected state;
+new uploads automatically finish setup, and adding another machine keeps setup available.

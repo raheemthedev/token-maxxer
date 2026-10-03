@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { computeHeadlineTotal, type NormalizedUsageEvent, type TokenBuckets } from "@token-maxxer/shared";
-import { detectProject } from "../project.js";
+import { codexDesktopFolder, detectProject } from "../project.js";
 import type { Connector, ConnectorStatus } from "./types.js";
 
 const CONNECTOR_VERSION = "0.2.0";
@@ -69,6 +69,7 @@ function buckets(total: Usage): TokenBuckets | null {
  * leaves this parser. The same complete partition is upserted on subsequent scans. */
 export async function parseRollout(lines: AsyncIterable<string>, projectSalt: string): Promise<NormalizedUsageEvent[]> {
   let sessionId: string | null = null, cwd: string | null = null, version: string | null = null, model: string | null = null;
+  let desktop = false;
   let previous: Usage | null = null;
   const groups = new Map<string, NormalizedUsageEvent>();
   const seenReadings = new Set<string>();
@@ -80,6 +81,7 @@ export async function parseRollout(lines: AsyncIterable<string>, projectSalt: st
     if (!p || typeof p !== "object") continue;
     if (o.type === "session_meta") {
       previous = null; model = null; cwd = null; version = null;
+      desktop = typeof p.originator === "string" && /desktop/i.test(p.originator);
       sessionId = typeof p.id === "string" ? p.id : sessionId;
       cwd = typeof p.cwd === "string" ? p.cwd : cwd;
       version = typeof p.cli_version === "string" ? p.cli_version : version;
@@ -115,9 +117,9 @@ export async function parseRollout(lines: AsyncIterable<string>, projectSalt: st
       }
       previous = raw;
       if (computeHeadlineTotal(delta) === 0) continue;
-      const project = cwd ? detectProject(cwd, projectSalt) : null;
+      const project = cwd ? detectProject(cwd, projectSalt, desktop ? codexDesktopFolder(sessionId, cwd) : undefined) : null;
       const day = time.toISOString().slice(0, 10);
-      const partition = createHash("sha256").update(JSON.stringify([model, project?.fingerprintHash ?? null])).digest("hex").slice(0, 24);
+      const partition = createHash("sha256").update(JSON.stringify([model, project?.identityFingerprint ?? null])).digest("hex").slice(0, 24);
       const id = `codex:v2:${sessionId}:${day}:${partition}`;
       let event = groups.get(id);
       if (!event) {
@@ -126,8 +128,8 @@ export async function parseRollout(lines: AsyncIterable<string>, projectSalt: st
           sourceEventId: id, replacesSourceEventId: `codex:${sessionId}`, eventType: "cumulative_snapshot",
           observedAt: time.toISOString(), periodStart: start.toISOString(), periodEnd: new Date(+start + 86400000).toISOString(),
           tokens: { input: 0, output: 0, cacheRead: null, cacheWrite: null, reasoning: null, reasoningIncludedInOutput: true },
-          projectFingerprint: project?.fingerprintHash ?? null, projectDetectionMethod: project?.detectionMethod ?? null,
-          localProjectHint: project?.localHint ?? null, evidenceLevel: "locally_reported" };
+          projectFingerprint: project?.folderConfirmed ? project.fingerprintHash : null, projectDetectionMethod: project?.folderConfirmed ? project.detectionMethod : null,
+          localProjectHint: project?.folderConfirmed ? project.localHint : null, projectFolderConfirmed: project?.folderConfirmed ?? false, evidenceLevel: "locally_reported" };
         groups.set(id, event);
       }
       for (const key of ["input", "output", "cacheRead", "cacheWrite"] as const) {

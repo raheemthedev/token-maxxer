@@ -8,6 +8,6 @@ export async function GET() {
   const authentication = Boolean(process.env.AUTH_SECRET && (github || email || process.env.NODE_ENV === "development"));
   const ingestion = Boolean(process.env.COLLECTOR_TOKEN_SECRET || process.env.NODE_ENV === "development");
   const ready = database && authentication && ingestion;
-  return NextResponse.json({ ready, database, authentication, ingestion, signIn: { github, email }, collectorVersion: "0.2.1", accountingVersion: 2 },
+  return NextResponse.json({ ready, database, authentication, ingestion, signIn: { github, email }, collectorVersion: "0.3.0", accountingVersion: 2, projectDetectionVersion: 2 },
     { status: ready ? 200 : 503, headers: { "Cache-Control": "no-store" } });
 }

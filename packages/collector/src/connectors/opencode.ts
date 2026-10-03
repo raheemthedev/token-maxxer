@@ -99,8 +99,8 @@ export function parseOpenCodeExport(payload: unknown, salt: string, directory?: 
       observedAt: time.toISOString(), periodStart: null, periodEnd: null,
       tokens: { input: t.input ?? null, output: t.output ?? null, cacheRead: t.cache?.read ?? null,
         cacheWrite: t.cache?.write ?? null, reasoning: t.reasoning ?? null, reasoningIncludedInOutput: false },
-      projectFingerprint: project?.fingerprintHash ?? null, projectDetectionMethod: project?.detectionMethod ?? null,
-      localProjectHint: project?.localHint ?? null, evidenceLevel: "locally_reported" });
+      projectFingerprint: project?.folderConfirmed ? project.fingerprintHash : null, projectDetectionMethod: project?.folderConfirmed ? project.detectionMethod : null,
+      localProjectHint: project?.folderConfirmed ? project.localHint : null, projectFolderConfirmed: project?.folderConfirmed ?? false, evidenceLevel: "locally_reported" });
   }
   return events;
 }

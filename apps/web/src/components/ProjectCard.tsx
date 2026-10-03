@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DashboardProject } from "@/lib/dashboard";
 import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { formatTokens } from "@/lib/formatTokens";
 
 const LINK_LABELS = ["repository", "live", "demo", "release", "video"] as const;
@@ -46,19 +45,25 @@ export function ProjectCard({
   }
 
   return (
-    <Card className="min-w-0 break-words">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="font-semibold">{project.displayName || project.detectedNameLocal}</h3>
-          <p className="stat-number mt-1 text-lg font-semibold">{formatTokens(project.tokens)} <span className="text-sm font-normal text-foreground-muted">tokens</span></p>
+    <Card className="min-w-0 break-words !rounded-2xl !p-4 !shadow-none">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="shrink-0 text-foreground-muted"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="M3 10h18"/></svg>
+          <h3 className="truncate font-medium">{project.displayName || project.detectedNameLocal}</h3>
         </div>
-        <Badge tone={project.visibility === "public" ? "green" : "neutral"}>
-          {project.hidden ? "Hidden" : project.visibility === "public" ? "Public" : "Private"}
-        </Badge>
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="stat-number text-sm font-semibold" title={`${project.tokens.toLocaleString()} tokens`}>{formatTokens(project.tokens)}<span className="sr-only"> tokens</span></span>
+          <button disabled={saving || project.hidden} onClick={() => patch({ visibility: project.visibility === "public" ? "private" : "public" })}
+            aria-label={`Make ${project.displayName || project.detectedNameLocal} ${project.visibility === "public" ? "private" : "public"}`}
+            title="Private: name only. Public: links enabled."
+            className={`rounded-full px-2.5 py-1 text-xs disabled:opacity-50 ${project.visibility === "public" ? "bg-green-100 text-green-700" : "bg-surface-muted text-foreground-muted"}`}>
+            {saving ? "Saving…" : project.hidden ? "Hidden" : project.visibility === "public" ? "Public" : "Private"}
+          </button>
+        </div>
       </div>
 
-      <details className="mt-4">
-      <summary className="cursor-pointer text-sm font-medium text-accent">Edit details</summary>
+      <details className="mt-2">
+      <summary className="cursor-pointer text-xs font-medium text-accent">Edit details</summary>
       <div className="mt-4 border-t border-border-soft pt-4">
       <p className="mb-3 text-xs text-foreground-muted">On published profiles, private projects show their name without a link. Public projects can link out. Hide removes the project entirely.</p>
       <label className="mb-2 block text-sm">
@@ -105,13 +110,6 @@ export function ProjectCard({
 
       <div className="flex flex-wrap items-center gap-2">
         {dirty && <button disabled={saving} onClick={() => patch(fields())} className="rounded-full bg-accent px-3.5 py-1.5 text-sm font-medium text-accent-foreground disabled:opacity-50">{saving ? "Saving…" : "Save changes"}</button>}
-        <button
-          disabled={saving}
-          onClick={() => patch({ ...fields(), visibility: project.visibility === "public" ? "private" : "public" })}
-          className="rounded-full border border-border-soft px-3.5 py-1.5 text-sm font-medium transition-colors hover:bg-surface-muted disabled:opacity-50"
-        >
-          {project.visibility === "public" ? "Make private" : "Make public"}
-        </button>
         <button
           disabled={saving}
           onClick={() => patch({ hidden: !project.hidden })}

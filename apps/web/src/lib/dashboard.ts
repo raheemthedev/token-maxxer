@@ -41,7 +41,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
       where: { id: userId },
       include: {
         publishSettings: true,
-        projects: { where: { mergedIntoId: null }, orderBy: { createdAt: "desc" } },
+        projects: { where: { mergedIntoId: null, folderConfirmed: true }, orderBy: { createdAt: "desc" } },
         usageEvents: {
           select: {
             source: true,
@@ -62,6 +62,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
 
   if (!user) throw new Error("User not found");
 
+  const confirmedProjectIds = new Set(user.projects.map(p => p.id));
   const tokensByProjectId = new Map<string, number>();
   let totalTokens = 0;
   let unknown = false;
@@ -86,7 +87,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     buckets.output += buckets_.output ?? 0;
     buckets.cacheRead += buckets_.cacheRead ?? 0;
     buckets.cacheWrite += buckets_.cacheWrite ?? 0;
-    if (event.projectId) {
+    if (event.projectId && confirmedProjectIds.has(event.projectId)) {
       tokensByProjectId.set(event.projectId, (tokensByProjectId.get(event.projectId) ?? 0) + total);
     } else {
       unassignedTokens += total;

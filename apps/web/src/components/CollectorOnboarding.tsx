@@ -4,18 +4,23 @@ import { Badge } from "./ui/Badge";
 import { RevokeCollectorButton } from "./RevokeCollectorButton";
 import { collectorStatus } from "@/lib/collectorStatus";
 
-type Collector = { id: string; name: string; status: string; kind: string; createdAt: string; lastSeenAt: string | null;
+type Collector = { clientVersion: string | null; id: string; name: string; status: string; kind: string; createdAt: string; lastSeenAt: string | null;
   lastIngestSummary: string | null; connectorStatuses: { source: string; displayName: string; status: string; message: string }[] | null };
+const currentTracking = (c: Collector, now: number) => c.kind === "cli" && c.clientVersion === "0.3.0" && collectorStatus(c, now).tone === "green";
 const quote = (s: string) => "'" + s.replaceAll("'", "'\\''") + "'";
 export function CollectorOnboarding({ serverUrl, initialCollectors, initialNow }: { serverUrl: string; initialCollectors: Collector[]; initialNow: number }) {
   const [now, setNow] = useState(initialNow);
   const [collectors, setCollectors] = useState(initialCollectors);
   const [platform, setPlatform] = useState("unix");
+  const [setupRequested, setSetupRequested] = useState(false);
   const [code, setCode] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const hasCurrent = collectors.some(c => currentTracking(c, now));
+  const showSetup = !hasCurrent || setupRequested;
+  const needsUpdate = !hasCurrent && collectors.some(c => c.status === "active" && c.kind === "cli");
   useEffect(() => {
     const controller = new AbortController();
     const refresh = async () => {
@@ -23,13 +28,16 @@ export function CollectorOnboarding({ serverUrl, initialCollectors, initialNow }
       try {
         const res = await fetch("/api/collector/status", { cache: "no-store", signal: controller.signal });
         if (!res.ok) return;
-        setCollectors((await res.json()).collectors);
+        const updated: Collector[] = (await res.json()).collectors;
+        setCollectors(updated);
+        if (code && updated.some(c => currentTracking(c, Date.now()) &&
+          (!initialCollectors.some(old => old.id === c.id) || !initialCollectors.some(old => currentTracking(old, initialNow))))) setSetupRequested(false);
         setNow(Date.now());
       } catch { /* reconnect on next poll */ }
     };
     const interval = setInterval(refresh, 5000);
     return () => { controller.abort(); clearInterval(interval); };
-  }, []);
+  }, [code, initialCollectors, initialNow]);
   async function generate() {
     setLoading(true); setError(null);
     try {
@@ -54,9 +62,11 @@ export function CollectorOnboarding({ serverUrl, initialCollectors, initialNow }
     ["3", "Done", "Watch “Receiving uploads” appear below, then review and publish when ready."],
   ] as const;
   return <div className="space-y-6">
-    <div className="card p-6 sm:p-8">
+    {!showSetup && <div className="card flex flex-wrap items-center justify-between gap-3 p-5"><div><h2 className="font-medium">Your tools are connected</h2><p className="mt-1 text-sm text-foreground-muted">Usage syncs automatically. You can close this page.</p></div><button className="pill pill-light" onClick={() => setSetupRequested(true)}>Connect another machine</button></div>}
+    {showSetup && <div className="card p-6 sm:p-8">
       <div className="flex flex-wrap items-center gap-3"><span className="eyebrow">Recommended</span><Badge tone="accent">Claude Code · Codex · OpenCode</Badge></div>
-      <h2 className="mt-3 text-2xl font-semibold tracking-tight">Connect your coding machine</h2>
+      <h2 className="mt-3 text-2xl font-semibold tracking-tight">{needsUpdate ? "Update your tracking" : "Connect your coding machine"}</h2>
+      {needsUpdate && <p className="mt-2 text-sm text-foreground-muted">Run the updated command once to separate folder projects from chats. Your account and usage are preserved.</p>}
       <p className="mt-2 max-w-2xl text-sm text-foreground-muted">One collector finds your tools, imports available history, and tracks new usage every five minutes. It starts automatically after login — no repository to clone, no terminal to keep open.</p>
       <ol className="mt-6 grid gap-3 sm:grid-cols-3">
         {steps.map(([n, title, body]) => <li key={n} className="rounded-3xl bg-surface-muted/60 p-4">
@@ -82,8 +92,8 @@ export function CollectorOnboarding({ serverUrl, initialCollectors, initialNow }
         </div>
       </div>}
       {error && <p role="alert" className="mt-3 text-sm text-red-600">{error}</p>}
-      <p className="mt-5 text-xs text-foreground-muted">Only token counts, model names, timestamps and private project hints are uploaded. Prompts, code and full paths stay on your machine. Projects and your profile stay private until you publish.</p>
-    </div>
+      <p className="mt-5 text-xs text-foreground-muted">Only token counts, model names, timestamps and folder project names are uploaded. Prompts, code and full paths stay on your machine. Your profile starts unpublished. Publishing shows folder names; private project links stay hidden.</p>
+    </div>}
     <section><h2 className="eyebrow mb-3">Connection status</h2>
       {collectors.length ? <div className="space-y-3">{collectors.map(c => {
         const status = collectorStatus(c, now);

@@ -43,7 +43,7 @@ async function getProfileData(handle: string, ownerId: string | null): Promise<P
     include: {
       publishSettings: true,
       projects: {
-        where: { hidden: false, mergedIntoId: null },
+        where: { hidden: false, mergedIntoId: null, folderConfirmed: true },
       },
       usageEvents: {
         select: {

@@ -65,9 +65,9 @@ export async function DashboardOverview({
           range={range}
           basePath="/dashboard"
           rows={[
-            { icon: "◐", label: "Unassigned usage", value: compact(data.unassignedTokens) },
+            { icon: "◐", label: "Other usage", value: compact(data.unassignedTokens) },
             { icon: "▦", label: "Paired collectors", value: String(activeCollectors) },
-            { icon: "◍", label: "Projects detected", value: String(data.projects.length) },
+            { icon: "◍", label: "Folder projects", value: String(data.projects.length) },
           ]}
         />
       )}

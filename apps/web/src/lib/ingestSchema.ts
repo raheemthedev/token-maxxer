@@ -11,6 +11,7 @@ export const eventSchema = z.object({
   tokens: z.object({ input: count, output: count, cacheRead: count, cacheWrite: count, reasoning: count, reasoningIncludedInOutput: z.boolean() }),
   projectFingerprintHash: z.string().regex(/^[a-f0-9]{64}$/).nullable().optional(),
   projectDetectionMethod: z.enum(["session_metadata", "git_root", "workspace_folder"]).nullable().optional(),
+  projectFolderConfirmed: z.boolean().optional(),
   publicRepositoryUrl: z.string().regex(/^https:\/\/github\.com\/[A-Za-z0-9-]+\/[A-Za-z0-9_.-]+$/).max(500).nullable().optional(),
   projectHintRedacted: z.string().max(64).refine(s => !/[\\/\r\n]/.test(s), "Project hint must be a folder name, not a path.").nullable().optional(),
   evidenceLevel: z.enum(["locally_reported", "provider_verified"]).optional(),
@@ -25,7 +26,7 @@ export const eventSchema = z.object({
   }
 });
 export const bodySchema = z.object({
-  collectorName: z.string().min(1).max(100), events: z.array(eventSchema).max(500),
+  collectorName: z.string().min(1).max(100), collectorVersion: z.string().max(30).optional(), events: z.array(eventSchema).max(500),
   connectorStatuses: z.array(z.object({ source: z.enum(["claude_code", "codex", "opencode"]),
     displayName: z.string().max(80), status: z.enum(["ok", "needs_setup", "unsupported", "error"]), message: z.string().max(300),
   })).max(3).optional(),

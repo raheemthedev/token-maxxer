@@ -16,7 +16,7 @@ import Link from "next/link";
 
 const SOURCE_LABELS: Record<string, string> = {
   claude_code: "Claude Code",
-  codex: "Codex CLI",
+  codex: "Codex",
   opencode: "OpenCode",
   synthetic: "Demo",
 };

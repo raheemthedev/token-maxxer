@@ -1,0 +1,4 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "alias": ["gettokenmaxxer.vercel.app", "token-maxxer-ten.vercel.app"]
+}

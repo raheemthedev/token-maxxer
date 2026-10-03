@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request body.", details: parsed.error.flatten() }, { status: 400 });
   }
-  const { collectorName, events, connectorStatuses } = parsed.data;
+  const { collectorName, events, connectorStatuses, collectorVersion } = parsed.data;
   if (events.some(e => e.source === "codex" && !e.periodEnd)) {
     return NextResponse.json({ error: "Your collector needs an update. Re-run the install command from your Collector page." }, { status: 409 });
   }
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
   await prisma.collector.update({
     where: { id: collector.id },
-    data: { lastSeenAt: new Date(), name: collectorName, connectorStatuses,
+    data: { lastSeenAt: new Date(), name: collectorName, connectorStatuses, clientVersion: collectorVersion,
       lastIngestSummary: `${result.accepted} new, ${result.duplicates} already seen` + (result.skippedSources?.length ? "; Claude Code already tracked via another method; overlapping uploads skipped" : ""),
     },
   });

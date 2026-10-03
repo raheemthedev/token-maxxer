@@ -93,6 +93,7 @@ model Collector {
   // Content-free description of the most recent upload (e.g. "saw claude_code.token.usage×4 → 1
   // usage event(s)"). Shown to the owning user so a misconfigured exporter is debuggable.
   lastIngestSummary String?
+  clientVersion    String?
   connectorStatuses Json?
   kind            String    @default("cli")
   createdAt       DateTime  @default(now())
@@ -146,13 +147,13 @@ model Project {
   // path. Used only to group usage events detected from the same local folder.
   fingerprintHash   String
   detectionMethod   String // session_metadata | git_root | workspace_folder
-  // Raw local folder/repo name as detected. Local-context only: shown to the owning user in
-  // their own dashboard, NEVER included in any public API response or page.
+  // Redacted folder basename. Published accounts show confirmed folder projects.
   detectedNameLocal String
-  // User-approved public name. Required before a project can be made visible.
+  // Optional owner-edited project name, preferred over the detected basename.
   displayName       String?
   visibility        String   @default("private") // private | public
   hidden            Boolean  @default(false)
+  folderConfirmed   Boolean @default(false)
   publicRepositoryUrl String?
   linkUrl           String?
   linkLabel         String? // repository | live | demo | release | video

@@ -75,6 +75,7 @@ export interface NormalizedUsageEvent {
   projectDetectionMethod: ProjectDetectionMethod | null;
   /** A GitHub repository URL verified public without credentials. Private remotes never leave the machine. */
   publicRepositoryUrl?: string | null;
+  projectFolderConfirmed?: boolean;
   /** Local folder hint; the upload boundary sends only a redacted basename to the private dashboard. */
   localProjectHint: string | null;
   evidenceLevel: EvidenceLevel;

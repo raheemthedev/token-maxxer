@@ -15,7 +15,7 @@ import { DashboardOverview } from "@/components/DashboardOverview";
 import { parseRange } from "@/components/ActivityCard";
 import { ShareBar } from "@/components/ui/Bars";
 
-const SOURCE_LABELS: Record<string, string> = { claude_code: "Claude Code", codex: "Codex CLI", opencode: "OpenCode", synthetic: "Demo" };
+const SOURCE_LABELS: Record<string, string> = { claude_code: "Claude Code", codex: "Codex", opencode: "OpenCode", synthetic: "Demo" };
 
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -127,15 +127,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <h2 className="mb-3 font-medium">Projects</h2>
         {data.unassignedTokens > 0 && (
           <p className="mb-4 text-sm text-foreground-muted">
-            {compact(data.unassignedTokens)} tokens without a project. Included in your total.
+            {compact(data.unassignedTokens)} tokens from chats and other activity are included in your total.
           </p>
         )}
         <ProjectList projects={data.projects} />
       </section>
 
       <section className="border-t border-border-soft pt-6">
-        <h2 className="mb-2 font-medium text-red-700 dark:text-red-400">Danger zone</h2>
-        <DeleteAccountButton />
+        <details><summary className="cursor-pointer text-sm text-foreground-muted">Account settings</summary><div className="mt-4"><DeleteAccountButton /></div></details>
       </section>
     </div>
   );

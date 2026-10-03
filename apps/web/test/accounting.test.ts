@@ -2,6 +2,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { prisma } from "../src/lib/prisma";
 import { persistUsageEvents, type IngestableEvent } from "../src/lib/ingest";
+import { getDashboardData } from "../src/lib/dashboard";
 import { getLeaderboard } from "../src/lib/leaderboard";
 import { bodySchema } from "../src/lib/ingestSchema";
 import { collectorStatus } from "../src/lib/collectorStatus";
@@ -94,7 +95,7 @@ test("Pairing codes are one-use under concurrency and same-account repair reuses
 test("Private project names are shown only after account publishing, without links or descriptions", async () => {
   const { user, c } = await fixture();
   const fingerprint = "a".repeat(64);
-  await persistUsageEvents(c.id, user.id, [event({ projectFingerprintHash: fingerprint, projectHintRedacted: "PRIVATE_CLIENT_NAME" })]);
+  await persistUsageEvents(c.id, user.id, [event({ projectFingerprintHash: fingerprint, projectHintRedacted: "PRIVATE_CLIENT_NAME", projectFolderConfirmed: true })]);
   assert.equal(await getPublicProfile(user.handle!), null);
   const preview = await getPrivateProfilePreview(user.id); assert.equal(preview?.projects[0].displayName, "PRIVATE_CLIENT_NAME");
   const project = await prisma.project.findFirstOrThrow({ where: { userId: user.id } });
@@ -112,7 +113,7 @@ test("Private project names are shown only after account publishing, without lin
 test("Public projects use owner links before discovered repositories; hidden and merged projects stay excluded", async () => {
   const { user, c } = await fixture();
   const fingerprint = "b".repeat(64);
-  const usage = event({ projectFingerprintHash: fingerprint, projectHintRedacted: "folder-name", publicRepositoryUrl: "https://github.com/owner/repository" });
+  const usage = event({ projectFingerprintHash: fingerprint, projectHintRedacted: "folder-name", projectFolderConfirmed: true, publicRepositoryUrl: "https://github.com/owner/repository" });
   await persistUsageEvents(c.id, user.id, [usage]);
   await prisma.publishSettings.create({ data: { userId: user.id, isPublic: true } });
   const project = await prisma.project.findFirstOrThrow({ where: { userId: user.id } });
@@ -159,4 +160,20 @@ test("Newly available cumulative categories are all-time baselines, not invented
   await prisma.publishSettings.create({ data: { userId: user.id, isPublic: true } });
   assert.equal(await total(user.id), 170);
   assert.equal((await getLeaderboard("daily")).find(r => r.userId === user.id)?.totalTokens, 20);
+});
+
+
+test("Chat attribution cleanup preserves totals and excludes legacy unconfirmed projects everywhere", async () => {
+  const { user, c } = await fixture();
+  await prisma.publishSettings.create({ data: { userId: user.id, isPublic: true } });
+  const chat = event({ projectFingerprintHash: "d".repeat(64), projectHintRedacted: "chat-title" });
+  await persistUsageEvents(c.id, user.id, [chat]);
+  const dashboard = await getDashboardData(user.id);
+  assert.equal(dashboard.projects.length, 0); assert.equal(dashboard.unassignedTokens, 170);
+  const cleanup = { ...chat, projectFingerprintHash: null, projectHintRedacted: null, projectFolderConfirmed: false };
+  await persistUsageEvents(c.id, user.id, [cleanup]);
+  assert.equal(await total(user.id), 170);
+  assert.equal((await getLeaderboard("all_time")).find(r => r.userId === user.id)?.projects.length, 0);
+  assert.equal((await getPublicProfile(user.handle!))?.projects.length, 0);
+  assert.equal((await prisma.usageEvent.findFirstOrThrow({ where: { userId: user.id } })).projectId, null);
 });

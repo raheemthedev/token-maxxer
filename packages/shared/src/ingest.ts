@@ -3,6 +3,7 @@ import type { NormalizedUsageEvent } from "./usage";
 /** Body the collector POSTs to /api/collector/ingest. Batched so a flaky connection can retry safely. */
 export interface IngestBatchRequest {
   collectorName: string;
+  collectorVersion?: string;
   events: NormalizedIngestEvent[];
   connectorStatuses?: { source: string; displayName: string; status: string; message: string }[];
 }

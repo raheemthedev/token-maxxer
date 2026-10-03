@@ -14,7 +14,7 @@ function toIngestEvent(event: NormalizedUsageEvent) {
   const rest = { source: event.source, sourceVersion: event.sourceVersion, connectorVersion: event.connectorVersion,
     provider: event.provider, model: event.model, sourceEventId: event.sourceEventId, replacesSourceEventId: event.replacesSourceEventId,
     eventType: event.eventType, observedAt: event.observedAt, periodStart: event.periodStart, periodEnd: event.periodEnd,
-    tokens: event.tokens, evidenceLevel: "locally_reported", projectDetectionMethod: event.projectDetectionMethod, publicRepositoryUrl: event.publicRepositoryUrl };
+    tokens: event.tokens, evidenceLevel: "locally_reported", projectDetectionMethod: event.projectDetectionMethod, projectFolderConfirmed: event.projectFolderConfirmed, publicRepositoryUrl: event.publicRepositoryUrl };
   return {
     ...rest,
     projectFingerprintHash: projectFingerprint,
@@ -46,7 +46,7 @@ async function verifyServerAccounting(serverUrl: string) {
   if (Date.now() - (verifiedServers.get(serverUrl) ?? 0) < 60000) return;
   const response = await fetch(new URL("/api/health", serverUrl), { signal: AbortSignal.timeout(15000) });
   const health = await response.json().catch(() => null);
-  if (!response.ok || !health?.ready || health.accountingVersion !== 2) {
+  if (!response.ok || !health?.ready || health.accountingVersion !== 2 || health.projectDetectionVersion !== 2) {
     throw new Error("The server needs the accounting update before this collector can upload safely. Existing pairing and queued usage are preserved.");
   }
   verifiedServers.set(serverUrl, Date.now());
@@ -62,6 +62,7 @@ export async function ingestBatch(
   await verifyServerAccounting(serverUrl);
   const body: IngestBatchRequest = {
     collectorName,
+    collectorVersion: "0.3.0",
     connectorStatuses,
     events: events.map(toIngestEvent) as unknown as IngestBatchRequest["events"],
   };
