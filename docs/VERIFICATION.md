@@ -87,3 +87,9 @@ its credential revoked while retaining uploaded usage.
 Collector version is reported on every heartbeat. Existing installations get a single-command update
 path instead of silently losing folder projects. Current healthy installations show a connected state;
 new uploads automatically finish setup, and adding another machine keeps setup available.
+
+Production commit `0c08d83` deployed successfully. Both the new public alias
+`https://gettokenmaxxer.vercel.app/` and the previous URL return ready health with collector 0.3.0
+and folder detection version 2. Account/sign-in routes on public aliases redirect to the configured
+OAuth host, preserving existing GitHub callback and session/PKCE cookies. A regression test covers
+that routing while public pages remain on the new alias.
